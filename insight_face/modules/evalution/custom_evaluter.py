@@ -25,6 +25,8 @@ class CustomEvaluter:
         real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
         standard_notblur = self.get_blur_var(image.shape[0]*image.shape[1])
 
+        print("real_notblur", real_notblur)
+
         threshnotblur = real_notblur/standard_notblur
         print(threshnotblur)
 

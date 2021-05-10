@@ -190,7 +190,7 @@ def recogn_thread_fun():
                 if faceCropExpand is None or faceCropExpand.size ==0 or landmark is None or landmark.size==0:
                     continue
                 faceAlign = share_param.facerec_system.sdk.align_face(rgb, landmark)
-                faceInfos.append([deviceId, bbox, landmark, faceCropExpand, iBuffer])
+                faceInfos.append([deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer])
                 faceAligns.append(faceAlign)
 
         # print("Align Time:", time.time() - preTime)
@@ -216,8 +216,8 @@ def recogn_thread_fun():
                     faceInfo.append(user_name)
                     faceInfo.append(distance[0])
         
-        for deviceId, bbox, landmark, faceCropExpand, iBuffer, descriptor, user_name, score in faceInfos:
-            faceFrameInfos[(iBuffer, deviceId)][0].append([bbox, landmark, faceCropExpand, descriptor, user_name, score])
+        for deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer, descriptor, user_name, score in faceInfos:
+            faceFrameInfos[(iBuffer, deviceId)][0].append([bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score])
 
         preTime = time.time()
         share_param.tracking_multiCam.update(faceFrameInfos)
@@ -227,10 +227,13 @@ def recogn_thread_fun():
             faceInfos = faceFrameInfos[(iBuffer, deviceId)][0]
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]
 
-            for bbox, landmark, faceCropExpand, descriptor, user_name, score, trackid in faceInfos:
+            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid in faceInfos:
+                print("faceAlign.shape", faceAlign.shape)
                 faceCrop = rgb[int(bbox[1]):int(bbox[3]),
                               int(bbox[0]):int(bbox[2])]
-                isNotBlur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceCrop)
+
+                support.add_imshow_queue("Align", faceAlign)
+                isNotBlur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceAlign)
                 isStraightFace = share_param.facerec_system.sdk.evaluter.check_straight_face(rgb, landmark)
                 
                 if trackid in trackidtoname:

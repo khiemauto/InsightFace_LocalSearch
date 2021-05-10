@@ -1,0 +1,8 @@
+DATA:
+  photo_path: dataset/photos  #path to save folders with images
+  database_path: database     #path to save database
+  reload_database: False
+DEV:
+  imshow: True
+  print: True
+  face_reg_score: 0.7

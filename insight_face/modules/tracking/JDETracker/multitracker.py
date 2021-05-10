@@ -1,8 +1,16 @@
+'''
+    File name: multipletracker.py
+    Author: Khiem Tran
+    Date created: 2020/05/08
+    Date last modified: 2020/05/08
+    Python Version: 3.7
+'''
+
 from numba import jit
 from collections import deque
 import torch
-from utils.kalman_filter import KalmanFilter
-from utils.log import logger
+from .utils.kalman_filter import KalmanFilter
+from .utils.log import logger
 from models import *
 from tracker import matching
 from .basetrack import BaseTrack, TrackState

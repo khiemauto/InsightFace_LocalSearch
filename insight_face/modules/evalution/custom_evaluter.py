@@ -18,23 +18,24 @@ class CustomEvaluter:
     def get_blur_var(self, area: float) -> float:
         return self.qi/((1.0+self.b*self.di*area)**(1.0/max(self.b, 1.e-50)))
 
-    def check_not_blur(self, image: np.ndarray) -> bool:
+    def check_not_blur(self, image: np.ndarray, faceSize:float) -> (bool, float):
         if image is None or image.size == 0:
-            return False
+            return False, 0.0
 
         real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
         standard_notblur = self.get_blur_var(image.shape[0]*image.shape[1])
 
-        print("real_notblur", real_notblur)
+        # standard_notblur = 0.00280530*faceSize +  68.7142432
+        print(real_notblur, standard_notblur)
 
         threshnotblur = real_notblur/standard_notblur
-        print(threshnotblur)
+        # print(threshnotblur)
 
         if threshnotblur < self.blur_threshold:
-            return False
+            return False, real_notblur
         else:
-            return True
-        return False
+            return True, real_notblur
+        return False, real_notblur
 
     def check_straight_face(self, image: np.ndarray, lm: list) -> bool:
         cnt = lm.reshape(5,2, order='F')

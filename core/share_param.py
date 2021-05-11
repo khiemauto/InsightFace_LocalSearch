@@ -14,6 +14,7 @@ RECOGN_QUEUE_SIZE = 20
 IMSHOW_QUEUE_SIZE = 5
 
 bRunning = True
+bExit = False
 cam_infos = {}
 cam_threads = {}
 detect_thread = None

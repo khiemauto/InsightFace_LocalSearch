@@ -1,18 +1,20 @@
 import time
 from datetime import datetime
-import argparse
-import json
+# import argparse
+# import json
 import threading
 import queue
+# import sys
 
 import cv2
 import numpy as np
-import torch
+# import torch
 import redis
 
 from core import support, share_param
 from insight_face.modules.tracking.custom_tracking import TrackingMultiCam
 from insight_face.utils.database import FaceRecognitionSystem
+import csv
 
 def cam_thread_fun(deviceID: int, camURL: str):
     cap = cv2.VideoCapture(camURL)
@@ -21,6 +23,8 @@ def cam_thread_fun(deviceID: int, camURL: str):
         print(f"[ERROR] Camera not open {camURL}")
     else:
         print(f"[INFO] Camera opened {camURL}")
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        cap.set(cv2.CAP_PROP_FOURCC, fourcc)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
@@ -29,7 +33,7 @@ def cam_thread_fun(deviceID: int, camURL: str):
     lastFrame = time.time()
     lastGood = time.time()
 
-    while True:
+    while not share_param.bExit:
         time.sleep(0.01)
         if time.time()-lastGood>300:
             print("[INFO] Restart cam:", camURL)
@@ -66,7 +70,7 @@ def cam_thread_fun(deviceID: int, camURL: str):
 def detect_thread_fun():
     totalTime = time.time()
 
-    while True: 
+    while not share_param.bExit: 
         if not share_param.bRunning:
             time.sleep(1)
             continue
@@ -150,7 +154,12 @@ def recogn_thread_fun():
     trackidtoname = {}
 
     FPS = {}
-    while True:
+
+    csvfile = open('blur.csv', 'w')
+    spamwriter = csv.writer(csvfile, delimiter=',')
+    # csvfile.close()
+
+    while not share_param.bExit:
         if not share_param.bRunning:
             time.sleep(1)
             continue
@@ -228,35 +237,32 @@ def recogn_thread_fun():
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]
 
             for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid in faceInfos:
-                print("faceAlign.shape", faceAlign.shape)
-                faceCrop = rgb[int(bbox[1]):int(bbox[3]),
-                              int(bbox[0]):int(bbox[2])]
-
-                support.add_imshow_queue("Align", faceAlign)
-                isNotBlur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceAlign)
+                faceSize = float((bbox[3]-bbox[1])*(bbox[2]-bbox[0]))
+                isNotBlur, real_notblur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceAlign, faceSize)
                 isStraightFace = share_param.facerec_system.sdk.evaluter.check_straight_face(rgb, landmark)
+
+                spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(real_notblur)])
                 
                 if trackid in trackidtoname:
                     cv2.rectangle(buffer_rgb[iBuffer], (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(buffer_rgb[iBuffer], "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-                    # if isNotBlur:
-                    #     share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
+                    cv2.putText(buffer_rgb[iBuffer], "{} {} {:03.3f} {} {}".format(trackid, user_name, score, real_notblur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    # share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
                     trackidtoname[trackid] = user_name
                     cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-                    # if isNotBlur:
-                    #     share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
+                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, real_notblur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    # share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
                 else:
                     user_name = datetime.now().strftime("%H%M%S%f")
                     cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, real_notblur, isStraightFace), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
+
                     if isNotBlur and isStraightFace:
-                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
                         share_param.redisClient.lpush("image",support.opencv_to_base64(faceCropExpand))
             
             support.add_imshow_queue(deviceId, rgb)
@@ -265,13 +271,14 @@ def recogn_thread_fun():
             print("FPS", deviceId, FPS[deviceId])
         
         # print("Recogn Time:", time.time() - totalTime)
+    csvfile.close()
 
 
 def imshow_thread_fun():
     # writer = cv2.VideoWriter("appsrc ! videoconvert ! videoscale ! video/x-raw,width=320,height=240 ! theoraenc ! oggmux ! tcpserversink host=10.38.61.124 port=8080 recover-policy=keyframe sync-method=latest-keyframe unit-format=buffers units-max=1 buffers-max=0 sync=true ", 
                             # 0, 5, (320, 240), True)
              
-    while True:
+    while not share_param.bExit:
         if not share_param.bRunning:
             time.sleep(1)
         else:
@@ -283,7 +290,10 @@ def imshow_thread_fun():
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 cv2.imshow(str(title), image)
                 # writer.write(image)
-            cv2.waitKey(10)
+            key = cv2.waitKey(10)
+
+            if key == ord("q"):
+                share_param.bExit = True
 
     # writer.release()
     cv2.destroyAllWindows()
@@ -295,7 +305,7 @@ if __name__ == '__main__':
 
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     share_param.tracking_multiCam = TrackingMultiCam()
-    share_param.redisClient = redis.StrictRedis(host="localhost", port=6379)
+    share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 
     if share_param.dev_config["DATA"]["reload_database"]:
         share_param.facerec_system.create_database_from_folders(share_param.dev_config["DATA"]["photo_path"])
@@ -322,5 +332,7 @@ if __name__ == '__main__':
     share_param.detect_thread.start()
     share_param.recogn_thread.start()
     share_param.imshow_thread.start()
+    share_param.imshow_thread.join()
+    share_param.recogn_thread.join()
     share_param.detect_thread.join()
 

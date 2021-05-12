@@ -2,21 +2,21 @@ detector:
   image_size: 336         # 224
   nms_threshold: 0.5
   conf_threshold: 0.8
-  device: cpu             # cpu, cuda
+  device: cuda             # cpu, cuda
   architecture: mnet1     # res50 (ResNet 50), mnet1 (mobilenet1)
 embedder:
   image_size: 112
   descriptor_size: &descriptor_size 512
-  device: cpu             # cpu, cuda
+  device: cuda             # cpu, cuda
   architecture: iresnet34 # iresnet100, iresnet50, iresnet34
 attributes:
   architecture: res18     # res18, mbnet2
-  device: cpu             # cpu, cuda
+  device: cuda             # cpu, cuda
   decision_threshold: 0.5
 database:
   descriptor_size: *descriptor_size
 tracking:
-  device: cpu         # cpu, cuda
+  device: cuda         # cpu, cuda
   iou-thres: 0.5      # IOU threshold for object to be classified as detected. default=0.5
   conf-thres: 0.5     # Confidence threshold for detection to be classified as object. default=0.5
   nms-thres: 0.4      # IOU threshold for performing non-max supression. default=0.4
@@ -26,7 +26,7 @@ evaluter:
   qi: 1345.33325
   b: 0.52109685
   di: 0.00023316
-  blur_threshold: 0.8
+  blur_threshold: 3.0
   ratio0_min: 0.85
   ratio0_max: 1.05
   ratio1_max: 0.1

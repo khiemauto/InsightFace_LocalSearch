@@ -6,3 +6,6 @@ DEV:
   imshow: True
   print: True
   face_reg_score: 0.7
+REDIS:
+  host: 127.0.0.1
+  port: 6379

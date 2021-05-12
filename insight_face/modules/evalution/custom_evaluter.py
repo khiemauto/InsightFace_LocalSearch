@@ -1,5 +1,7 @@
+from typing import Tuple
 import cv2
-import numpy as np 
+import numpy as np
+from numpy.lib.type_check import imag 
 
 class CustomEvaluter:
     def __init__(self, config: dict):
@@ -18,24 +20,45 @@ class CustomEvaluter:
     def get_blur_var(self, area: float) -> float:
         return self.qi/((1.0+self.b*self.di*area)**(1.0/max(self.b, 1.e-50)))
 
-    def check_not_blur(self, image: np.ndarray, faceSize:float) -> (bool, float):
+    # def check_not_blur(self, image: np.ndarray, faceSize:float) -> Tuple[bool, float]:
+    #     if image is None or image.size == 0:
+    #         return False, 0.0, 0.0, 0.0
+
+    #     real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
+    #     standard_notblur = self.get_blur_var(image.shape[0]*image.shape[1])
+
+    #     # standard_notblur = 0.00280530*faceSize +  68.7142432
+    #     print(real_notblur, standard_notblur)
+
+    #     threshnotblur = real_notblur/standard_notblur
+    #     # print(threshnotblur)
+
+    #     if threshnotblur < self.blur_threshold:
+    #         return False, threshnotblur, real_notblur, standard_notblur
+    #     else:
+    #         return True, threshnotblur, real_notblur, standard_notblur
+
+    #     return False, threshnotblur, real_notblur, standard_notblur
+
+    def check_not_blur(self, image: np.ndarray) -> Tuple[bool, float]:
         if image is None or image.size == 0:
             return False, 0.0
 
-        real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
-        standard_notblur = self.get_blur_var(image.shape[0]*image.shape[1])
+        imageresize = cv2.resize(image, (112,112))
 
-        # standard_notblur = 0.00280530*faceSize +  68.7142432
-        print(real_notblur, standard_notblur)
+        # print(imageresize.shape)
+
+        real_notblur = cv2.Laplacian(imageresize, cv2.CV_64F).var()
+        standard_notblur = 300
 
         threshnotblur = real_notblur/standard_notblur
         # print(threshnotblur)
 
         if threshnotblur < self.blur_threshold:
-            return False, real_notblur
+            return False, threshnotblur
         else:
-            return True, real_notblur
-        return False, real_notblur
+            return True, threshnotblur
+        return False, threshnotblur
 
     def check_straight_face(self, image: np.ndarray, lm: list) -> bool:
         cnt = lm.reshape(5,2, order='F')

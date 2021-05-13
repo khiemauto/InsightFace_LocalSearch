@@ -1,16 +1,16 @@
 CamInfos:
-  - DeviceID: 1
-    LinkRTSP: 0
-  # - DeviceID: 2
-    # LinkRTSP: rtsp://admin:123456a@@10.38.61.248
+  # - DeviceID: 1
+  #   LinkRTSP: 0
+  - DeviceID: 2
+    LinkRTSP: rtsp://admin:123456a@@10.38.61.248
   # - DeviceID: 3
   #   LinkRTSP: rtsp://admin:123456a@@10.38.61.248
   # - DeviceID: 4
   #   LinkRTSP: rtsp://admin:123456a@@10.38.61.248
   # - DeviceID: 5
   #   LinkRTSP: rtsp://admin:123456a@@10.38.61.248
-  # - DeviceID: 6
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
+  - DeviceID: 6
+    LinkRTSP: rtsp://admin:123456a@@10.38.61.114
   # - DeviceID: 7
   #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
   # - DeviceID: 8

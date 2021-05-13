@@ -26,7 +26,8 @@ evaluter:
   qi: 1345.33325
   b: 0.52109685
   di: 0.00023316
-  blur_threshold: 3.0
+  illumination_threshold: 0.5
+  blur_threshold: 0.85
   ratio0_min: 0.85
   ratio0_max: 1.05
   ratio1_max: 0.1

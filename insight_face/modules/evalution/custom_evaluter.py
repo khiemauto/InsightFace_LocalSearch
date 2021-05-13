@@ -1,7 +1,6 @@
 from typing import Tuple
 import cv2
 import numpy as np
-from numpy.lib.type_check import imag 
 
 class CustomEvaluter:
     def __init__(self, config: dict):
@@ -10,6 +9,7 @@ class CustomEvaluter:
         self.b = config["b"]
         self.di = config["di"]
 
+        self.illumination_threshold = config["illumination_threshold"]
         self.blur_threshold = config["blur_threshold"]
         self.ratio0_min = config["ratio0_min"]
         self.ratio0_max = config["ratio0_max"]
@@ -40,19 +40,34 @@ class CustomEvaluter:
 
     #     return False, threshnotblur, real_notblur, standard_notblur
 
+    def check_illumination(self, image):
+        if image is None or image.size == 0:
+            return False, 0.0
+        image = cv2.resize(image, (112,112))
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        # length of R available  range  of  gray  intensities  excluding  5%  of  the darkest  and  brightest  pixel
+        sorted_gray = np.sort(gray.ravel())
+        l = len(sorted_gray)
+        cut_off_idx = l * 5 // 100
+        r = sorted_gray[l-cut_off_idx] - sorted_gray[cut_off_idx]
+        illuminate = np.round(r / 255, 2)
+
+        if illuminate < self.illumination_threshold:
+            return False, illuminate
+
+        return True, illuminate
+
     def check_not_blur(self, image: np.ndarray) -> Tuple[bool, float]:
         if image is None or image.size == 0:
             return False, 0.0
 
         imageresize = cv2.resize(image, (112,112))
 
-        # print(imageresize.shape)
-
         real_notblur = cv2.Laplacian(imageresize, cv2.CV_64F).var()
         standard_notblur = 300
 
         threshnotblur = real_notblur/standard_notblur
-        # print(threshnotblur)
+        print(threshnotblur)
 
         if threshnotblur < self.blur_threshold:
             return False, threshnotblur
@@ -89,3 +104,55 @@ class CustomEvaluter:
             return False
 
         return False
+
+    def detect_blur_fft(self, image, size=60, thresh=10):
+        # grab the dimensions of the image and use the dimensions to
+        # derive the center (x, y)-coordinates
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        (h, w) = image.shape
+        (cX, cY) = (int(w / 2.0), int(h / 2.0))
+
+        # compute the FFT to find the frequency transform, then shift
+        # the zero frequency component (i.e., DC component located at
+        # the top-left corner) to the center where it will be more
+        # easy to analyze
+        fft = np.fft.fft2(image)
+        fftShift = np.fft.fftshift(fft)
+
+        # check to see if we are visualizing our output
+        if True:
+            # compute the magnitude spectrum of the transform
+            magnitude = 20 * np.log(np.abs(fftShift))
+
+            # display the original input image
+            (fig, ax) = plt.subplots(1, 2, )
+            ax[0].imshow(image, cmap="gray")
+            ax[0].set_title("Input")
+            ax[0].set_xticks([])
+            ax[0].set_yticks([])
+
+            # display the magnitude image
+            ax[1].imshow(magnitude, cmap="gray")
+            ax[1].set_title("Magnitude Spectrum")
+            ax[1].set_xticks([])
+            ax[1].set_yticks([])
+
+            # show our plots
+            plt.show()
+
+        # zero-out the center of the FFT shift (i.e., remove low
+        # frequencies), apply the inverse shift such that the DC
+        # component once again becomes the top-left, and then apply
+        # the inverse FFT
+        fftShift[cY - size:cY + size, cX - size:cX + size] = 0
+        fftShift = np.fft.ifftshift(fftShift)
+        recon = np.fft.ifft2(fftShift)
+
+        # compute the magnitude spectrum of the reconstructed image,
+        # then compute the mean of the magnitude values
+        magnitude = 20 * np.log(np.abs(recon))
+        mean = np.mean(magnitude)
+
+        # the image will be considered "blurry" if the mean value of the
+        # magnitudes is less than the threshold value
+        return (mean <= thresh, mean)

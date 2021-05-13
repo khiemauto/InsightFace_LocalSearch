@@ -152,7 +152,7 @@ def detect_thread_fun():
 
 def recogn_thread_fun():
     totalTime = time.time()
-    trackidtoname = {}
+    trackidtoname = {}      #{(deviceID,trackID): name}
 
     user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed]}
 
@@ -173,7 +173,7 @@ def recogn_thread_fun():
             if user_qualityscore_face_firsttime[user][5]:
                 continue
             if time.time() - user_qualityscore_face_firsttime[user][3] > 3.0:
-                filename = user_name + "G.jpg"
+                filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 cv2.imwrite(photo_path, user_qualityscore_face_firsttime[user][4])
                 share_param.redisClient.lpush("image",support.opencv_to_base64(user_qualityscore_face_firsttime[user][4]))
@@ -256,55 +256,46 @@ def recogn_thread_fun():
                                     int(bbox[0]):int(bbox[2])]
 
                 faceSize = float((bbox[3]-bbox[1])*(bbox[2]-bbox[0]))
-                isNotBlur, threshnotblur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceAlign)
+                isillumination, threshillumination = share_param.facerec_system.sdk.evaluter.check_illumination(faceCrop)
+                isNotBlur, threshnotblur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceCrop)
                 isStraightFace = share_param.facerec_system.sdk.evaluter.check_straight_face(rgb, landmark)
 
-                # if isNotBlur:
-                #     un = datetime.now().strftime("%H%M%S%fn.jpg")
-                #     pp = os.path.join("dataset/bestphotos", un)
-                #     cv2.imwrite(pp, faceCropExpand)
-                # else:
-                #     un = datetime.now().strftime("%H%M%S%fb.jpg")
-                #     pp = os.path.join("dataset/bestphotos", un)
-                #     cv2.imwrite(pp, faceCropExpand)
-
-                spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur)])
+                spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
-                # if score > share_param.dev_config["DEV"]["face_reg_score"]:
-                #     trackidtoname[trackid] = user_name
-                #     cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
-                #     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                #     cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-                if trackid in trackidtoname:
+                if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(buffer_rgb[iBuffer], (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(buffer_rgb[iBuffer], "{} {} {:03.3f} {} {}".format(trackid, trackidtoname[trackid], score, isNotBlur, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(buffer_rgb[iBuffer], "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if threshnotblur > user_qualityscore_face_firsttime[trackidtoname[trackid]][1]:
-                        user_qualityscore_face_firsttime[trackidtoname[trackid]][0] = faceSize
-                        user_qualityscore_face_firsttime[trackidtoname[trackid]][1] = threshnotblur
-                        user_qualityscore_face_firsttime[trackidtoname[trackid]][4] = rgb
+                    if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
+                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
+                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
-                    trackidtoname[trackid] = user_name
+                    trackidtoname[(deviceId,trackid)] = user_name
                     cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgb, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+                    if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                        user_qualityscore_face_firsttime[user_name][0] = faceSize
+                        user_qualityscore_face_firsttime[user_name][1] = threshnotblur
+                        user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
 
                 else:
-                    user_name = datetime.now().strftime("%H%M%S%f")
+                    new_user_name = datetime.now().strftime("%H%M%S%f")
                     cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {} {}".format(trackid, user_name, score, isNotBlur, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgb, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, new_user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
-                    if isNotBlur and isStraightFace:
-                        trackidtoname[trackid] = user_name
-                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
-                        user_qualityscore_face_firsttime[user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), rgb, False]
-                        filename = user_name + "F.jpg"
+                    if isNotBlur and isStraightFace and isillumination:
+                        trackidtoname[(deviceId,trackid)] = new_user_name
+                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
+                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False]
+                        filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/bestphotos", filename)
-                        cv2.imwrite(photo_path, rgb)
-                        # share_param.redisClient.lpush("image",support.opencv_to_base64(faceCropExpand))
+                        cv2.imwrite(photo_path, faceCropExpand)
             
             support.add_imshow_queue(deviceId, rgb)
 

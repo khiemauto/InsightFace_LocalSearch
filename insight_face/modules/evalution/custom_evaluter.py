@@ -61,13 +61,13 @@ class CustomEvaluter:
         if image is None or image.size == 0:
             return False, 0.0
 
-        imageresize = cv2.resize(image, (112,112))
+        image = cv2.resize(image, (112,112))
 
-        real_notblur = cv2.Laplacian(imageresize, cv2.CV_64F).var()
+        real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
         standard_notblur = 300
 
         threshnotblur = real_notblur/standard_notblur
-        print(threshnotblur)
+        # print("threshnotblur", threshnotblur)
 
         if threshnotblur < self.blur_threshold:
             return False, threshnotblur

@@ -175,7 +175,7 @@ def recogn_thread_fun():
             if time.time() - user_qualityscore_face_firsttime[user][3] > 3.0:
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
-                cv2.imwrite(photo_path, user_qualityscore_face_firsttime[user][4])
+                cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
                 share_param.redisClient.lpush("image",support.opencv_to_base64(user_qualityscore_face_firsttime[user][4]))
                 user_qualityscore_face_firsttime[user][5] = True
 
@@ -192,7 +192,6 @@ def recogn_thread_fun():
         faceFrameInfos = {}     #Dict contain face infor and rgb of each frame in batch
 
         preTime = time.time()
-        buffer_rgb = {}
 
         for iBuffer, (deviceId, bboxs, landmarks, faceCropExpands, rgb) in enumerate(recogn_inputs):
             if deviceId not in FPS:
@@ -204,8 +203,6 @@ def recogn_thread_fun():
                     FPS[deviceId][0] = 0.8*FPS[deviceId][0] + 0.2*FPS[deviceId][2]
                     FPS[deviceId][2] = 0
                     FPS[deviceId][1] = time.time()
-
-            buffer_rgb[iBuffer] = rgb
 
             faceFrameInfos[(iBuffer, deviceId)] = ([], rgb)     #Init faceFrameInfos
             
@@ -242,13 +239,14 @@ def recogn_thread_fun():
         for deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer, descriptor, user_name, score in faceInfos:
             faceFrameInfos[(iBuffer, deviceId)][0].append([bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score])
 
-        preTime = time.time()
+        # preTime = time.time()
         share_param.tracking_multiCam.update(faceFrameInfos)
-        print("Tracking time:", time.time() - preTime)
+        # print("Tracking time:", time.time() - preTime)
 
         for iBuffer, deviceId in faceFrameInfos:
             faceInfos = faceFrameInfos[(iBuffer, deviceId)][0]
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]
+            rgbDraw = rgb.copy()
 
             for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid in faceInfos:
 
@@ -263,9 +261,9 @@ def recogn_thread_fun():
                 spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
                 if (deviceId,trackid) in trackidtoname:
-                    cv2.rectangle(buffer_rgb[iBuffer], (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+                    cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(buffer_rgb[iBuffer], "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
@@ -274,9 +272,9 @@ def recogn_thread_fun():
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
                     trackidtoname[(deviceId,trackid)] = user_name
-                    cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+                    cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
@@ -285,9 +283,9 @@ def recogn_thread_fun():
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")
-                    cv2.rectangle(rgb, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
+                    cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgb, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, new_user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, new_user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
                     if isNotBlur and isStraightFace and isillumination:
                         trackidtoname[(deviceId,trackid)] = new_user_name
@@ -295,9 +293,9 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False]
                         filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/bestphotos", filename)
-                        cv2.imwrite(photo_path, faceCropExpand)
+                        cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
             
-            support.add_imshow_queue(deviceId, rgb)
+            support.add_imshow_queue(deviceId, rgbDraw)
 
         for deviceId in FPS:
             print("FPS", deviceId, FPS[deviceId])

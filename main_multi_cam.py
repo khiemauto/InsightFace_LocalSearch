@@ -172,7 +172,7 @@ def recogn_thread_fun():
         for user in user_qualityscore_face_firsttime:
             if user_qualityscore_face_firsttime[user][5]:
                 continue
-            if time.time() - user_qualityscore_face_firsttime[user][3] > 3.0:
+            if time.time() - user_qualityscore_face_firsttime[user][3] > 5.0:
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
@@ -248,7 +248,7 @@ def recogn_thread_fun():
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]
             rgbDraw = rgb.copy()
 
-            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid in faceInfos:
+            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid, overlap in faceInfos:
 
                 faceCrop = rgb[int(bbox[1]):int(bbox[3]),
                                     int(bbox[0]):int(bbox[2])]
@@ -263,9 +263,9 @@ def recogn_thread_fun():
                 if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
@@ -274,9 +274,9 @@ def recogn_thread_fun():
                     trackidtoname[(deviceId,trackid)] = user_name
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if isStraightFace and isillumination and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
@@ -285,20 +285,20 @@ def recogn_thread_fun():
                     new_user_name = datetime.now().strftime("%H%M%S%f")
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f}".format(trackid, new_user_name, score, threshillumination, threshnotblur), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
-                    if isNotBlur and isStraightFace and isillumination:
+                    if isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
                         user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False]
                         filename = new_user_name + "F.jpg"
-                        photo_path = os.path.join("dataset/bestphotos", filename)
+                        photo_path = os.path.join("dataset/firstphotos", filename)
                         cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
             
             support.add_imshow_queue(deviceId, rgbDraw)
 
         for deviceId in FPS:
-            print("FPS", deviceId, FPS[deviceId])
+            print(f"FPS {deviceId} {FPS[deviceId]}")
         
         # print("Recogn Time:", time.time() - totalTime)
     csvfile.close()

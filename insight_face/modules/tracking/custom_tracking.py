@@ -185,7 +185,22 @@ class Tracking():
         #Create track with new detect
 
         # print("detect_track_iou", detect_track_iou)
+
+        overlaps = [False]*len(detectbox_descriptors)
+
         for detectboxid, (detectbox,descriptor) in enumerate(detectbox_descriptors):
+            #Check over lap
+            xyxydetectbox = (detectbox[0], detectbox[1], detectbox[0]+detectbox[2], detectbox[1]+ detectbox[3])
+
+            for other_detectboxid, (other_detectbox,other_descriptor) in enumerate(detectbox_descriptors):
+                if detectboxid == other_detectboxid:
+                    continue
+                other_xyxydetectbox = (other_detectbox[0], other_detectbox[1], other_detectbox[0]+other_detectbox[2], other_detectbox[1]+ other_detectbox[3])
+                iou = self.bb_intersection_over_union(xyxydetectbox, other_xyxydetectbox)
+                if iou > 0.01:
+                    overlaps[detectboxid] = True
+                    break
+            #New track
             if detectboxid in detectbox_descriptor_processed:
                 continue
             # if detectboxid not in detect_track_iou:
@@ -196,7 +211,7 @@ class Tracking():
             detectbox_descriptor_processed.add(detectboxid)
 
         # print(len(trackid_bboxes))
-        return trackid_bboxes
+        return trackid_bboxes, overlaps
 
     def release(self):
         self.trackers.clear()
@@ -264,7 +279,8 @@ class TrackingMultiCam():
 
                 detectbox_descriptors.append(((boxx, boxy, boxw, boxh), descriptor))
 
-            trackinfos = self.trackers[deviceId].update_with_descriptor(rgb, detectbox_descriptors)
+            trackinfos, overlaps = self.trackers[deviceId].update_with_descriptor(rgb, detectbox_descriptors)
 
-            for faceInfo, (trackid, boxes) in zip(faceInfos, trackinfos):
+            for faceInfo, (trackid, boxes), overlap in zip(faceInfos, trackinfos, overlaps):
                 faceInfo.append(trackid)
+                faceInfo.append(overlap)

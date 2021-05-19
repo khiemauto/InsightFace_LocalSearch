@@ -15,6 +15,7 @@ import redis
 from core import support, share_param
 from insight_face.modules.tracking.custom_tracking import TrackingMultiCam
 from insight_face.utils.database import FaceRecognitionSystem
+from insight_face.modules.evalution.custom_evaluter import CustomEvaluter
 import csv
 
 def cam_thread_fun(deviceID: int, camURL: str):
@@ -254,9 +255,9 @@ def recogn_thread_fun():
                                     int(bbox[0]):int(bbox[2])]
 
                 faceSize = float((bbox[3]-bbox[1])*(bbox[2]-bbox[0]))
-                isillumination, threshillumination = share_param.facerec_system.sdk.evaluter.check_illumination(faceCrop)
-                isNotBlur, threshnotblur = share_param.facerec_system.sdk.evaluter.check_not_blur(faceCrop)
-                isStraightFace = share_param.facerec_system.sdk.evaluter.check_straight_face(rgb, landmark)
+                isillumination, threshillumination = share_param.evaluter_cams[deviceID].check_illumination(faceCrop)
+                isNotBlur, threshnotblur = share_param.evaluter_cams[deviceID].check_not_blur(faceCrop)
+                isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(rgb, landmark)
 
                 spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
@@ -350,6 +351,12 @@ if __name__ == '__main__':
     for cam_info in share_param.cam_infos["CamInfos"]:
         deviceID = cam_info["DeviceID"]
         camURL = cam_info["LinkRTSP"]
+
+        evalution_config = share_param.sdk_config["evaluter"]
+        evalution_config["illumination_threshold"] = cam_info["illumination_threshold"]
+        evalution_config["blur_threshold"] = cam_info["blur_threshold"]
+
+        share_param.evaluter_cams[deviceID] = CustomEvaluter(evalution_config)
         share_param.cam_threads[deviceID] = threading.Thread(target=cam_thread_fun, daemon=True, args=(deviceID, camURL))
 
     share_param.detect_thread = threading.Thread(target=detect_thread_fun, daemon=True, args=())

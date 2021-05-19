@@ -4,6 +4,7 @@ cam_infos = None
 facerec_system = None
 
 tracking_multiCam = None
+evaluter_cams = {}
 redisClient = None
 
 batch_size = 5

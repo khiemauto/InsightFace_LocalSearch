@@ -5,9 +5,9 @@ import numpy as np
 class CustomEvaluter:
     def __init__(self, config: dict):
 
-        self.qi = config["qi"]
-        self.b = config["b"]
-        self.di = config["di"]
+        # self.qi = config["qi"]
+        # self.b = config["b"]
+        # self.di = config["di"]
 
         self.illumination_threshold = config["illumination_threshold"]
         self.blur_threshold = config["blur_threshold"]

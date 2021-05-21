@@ -173,7 +173,7 @@ def recogn_thread_fun():
         for user in user_qualityscore_face_firsttime:
             if user_qualityscore_face_firsttime[user][5]:
                 continue
-            if time.time() - user_qualityscore_face_firsttime[user][3] > 5.0:
+            if time.time() - user_qualityscore_face_firsttime[user][3] > 1.0:
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
@@ -270,6 +270,11 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
+
+                        if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
                     trackidtoname[(deviceId,trackid)] = user_name
@@ -281,6 +286,10 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
+
+                        if user_qualityscore_face_firsttime[user_name][5] == True:
+                            user_qualityscore_face_firsttime[user_name][5] = False
+                            user_qualityscore_face_firsttime[user_name][3] = time.time()
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")

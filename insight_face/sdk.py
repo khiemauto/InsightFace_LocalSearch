@@ -185,7 +185,7 @@ class FaceRecognitionSDK:
         """
         logger.debug("Start faces detection.")
         bboxes_batch, landmarks_batch = self.detector.predict_batch(images)
-        logger.debug(f"Finish faces detection. Count of detected faces: {len(bboxes_batch)}.")
+        logger.debug(f"Finish faces detection. Count of detected frame: {len(bboxes_batch)}.")
         return bboxes_batch, landmarks_batch
 
     def recognize_faces(self, image: np.ndarray):

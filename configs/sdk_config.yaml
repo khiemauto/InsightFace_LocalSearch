@@ -1,35 +1,35 @@
-detector:
-  image_size: 336         # 224
-  nms_threshold: 0.5
+detector:                   # retina face detector
+  image_size: 336           # image size input to detector. Default:224
+  nms_threshold: 0.5    
   conf_threshold: 0.8
-  device: cuda             # cpu, cuda
-  architecture: res50     # res50 (ResNet 50), mnet1 (mobilenet1)
-embedder:
-  image_size: 112
+  device: cuda              # cpu, cuda
+  architecture: res50       # res50 (ResNet 50), mnet1 (mobilenet1)
+embedder:                   # face image to 512D
+  image_size: 112           # input size of emmbeder 
   descriptor_size: &descriptor_size 512
-  device: cuda             # cpu, cuda
-  architecture: iresnet34 # iresnet100, iresnet50, iresnet34
+  device: cuda              # cpu, cuda
+  architecture: iresnet34   # iresnet100, iresnet50, iresnet34
 attributes:
-  architecture: res18     # res18, mbnet2
-  device: cuda             # cpu, cuda
+  architecture: res18       # res18, mbnet2
+  device: cuda              # cpu, cuda
   decision_threshold: 0.5
-database:
+database:                   # faiss database
   descriptor_size: *descriptor_size
 tracking:
-  device: cuda         # cpu, cuda
+  device: cuda        # cpu, cuda
   iou-thres: 0.5      # IOU threshold for object to be classified as detected. default=0.5
   conf-thres: 0.5     # Confidence threshold for detection to be classified as object. default=0.5
   nms-thres: 0.4      # IOU threshold for performing non-max supression. default=0.4
   min-box-area: 200   # Filter out boxes smaller than this area from detections. default=200
   track-buffer: 30    # Size of the tracking buffer. default=30
-evaluter:
+evaluter:                   # Face quality evaluter
   qi: 1345.33325
   b: 0.52109685
   di: 0.00023316
-  illumination_threshold: 0.5
-  blur_threshold: 0.85  #0.70
-  ratio0_min: 0.85
-  ratio0_max: 1.05
-  ratio1_max: 0.1
-  ratio2_min: 0.4
-  ratio2_max: 0.7
+  illumination_threshold: 0.4       # illumination threshold. Default: 0.4
+  blur_threshold: 0.85              # blur threshold. Default: 0.85
+  ratio0_min: 0.85                  # straight face evalution 
+  ratio0_max: 1.05                  # straight face evalution
+  ratio1_max: 0.1                   # straight face evalution
+  ratio2_min: 0.4                   # straight face evalution
+  ratio2_max: 0.7                   # straight face evalution

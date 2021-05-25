@@ -17,14 +17,17 @@ from insight_face.modules.tracking.custom_tracking import TrackingMultiCam
 from insight_face.utils.database import FaceRecognitionSystem
 from insight_face.modules.evalution.custom_evaluter import CustomEvaluter
 import csv
+import logging
+
+logging.basicConfig(filename="example.log", format="%(asctime)s:%(levelname)s:%(message)s", encoding="utf-8", level=logging.DEBUG)
 
 def cam_thread_fun(deviceID: int, camURL: str):
     cap = cv2.VideoCapture(camURL)
 
     if not cap or not cap.isOpened():
-        print(f"[ERROR] Camera not open {camURL}")
+        logging.warning(f"Camera not open {camURL}")
     else:
-        print(f"[INFO] Camera opened {camURL}")
+        logging.info(f"Camera opened {camURL}")
         fourcc = cv2.VideoWriter_fourcc(*'MJPG')
         cap.set(cv2.CAP_PROP_FOURCC, fourcc)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -38,7 +41,7 @@ def cam_thread_fun(deviceID: int, camURL: str):
     while not share_param.bExit:
         time.sleep(0.01)
         if time.time()-lastGood>300:
-            print("[INFO] Restart cam:", camURL)
+            logging.info(f"Restart camera {camURL}")
             cap.open(camURL)
             lastGood = time.time()
 
@@ -61,8 +64,6 @@ def cam_thread_fun(deviceID: int, camURL: str):
         frame = frame[:, xstart: xstart + frame.shape[0]]
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # cv2.putText(frame, str(FrameID), (10, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, (255,0,0), 2)
-        # support.add_imshow_queue(deviceID, frame)
         support.add_cam_queue(deviceID, frame, FrameID)
         FrameID += 1
 
@@ -179,6 +180,7 @@ def recogn_thread_fun():
                 cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
                 share_param.redisClient.lpush("image",support.opencv_to_base64(user_qualityscore_face_firsttime[user][4]))
                 user_qualityscore_face_firsttime[user][5] = True
+                logging.info(f"Push person face {user} to redis")
 
         if share_param.detect_queue.empty():
             continue
@@ -274,6 +276,7 @@ def recogn_thread_fun():
                         if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
                             user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
                             user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+                            logging.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
@@ -290,6 +293,7 @@ def recogn_thread_fun():
                         if user_qualityscore_face_firsttime[user_name][5] == True:
                             user_qualityscore_face_firsttime[user_name][5] = False
                             user_qualityscore_face_firsttime[user_name][3] = time.time()
+                            logging.info(f"Found a better face of {user_name}")
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")
@@ -304,6 +308,7 @@ def recogn_thread_fun():
                         filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/firstphotos", filename)
                         cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
+                        logging.info(f"Found a better face of {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)
 
@@ -326,7 +331,7 @@ def imshow_thread_fun():
         while not share_param.imshow_queue.empty():
             title, image = share_param.imshow_queue.get()
             if share_param.dev_config["DEV"]["imshow"]:
-                # image = cv2.resize(image, (300,300))
+                image = cv2.resize(image, (600,600))
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 cv2.imshow(str(title), image)
                 # writer.write(image)
@@ -334,17 +339,24 @@ def imshow_thread_fun():
 
             if key == ord("q"):
                 share_param.bExit = True
+                logging.info(f"The shutdown command has been sent")
+
 
     # writer.release()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
+    logging.info("Starting application")
+    logging.info("Reading configs")
     share_param.sdk_config = support.get_config_yaml("configs/sdk_config.yaml")
     share_param.dev_config = support.get_config_yaml("configs/dev_config.yaml")
     share_param.cam_infos = support.get_config_yaml("configs/cam_infos.yaml")
-
+    logging.info("Done reading configs")
+    logging.info("Init FaceRecognitionSystem")
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
+    logging.info("Init TrackingMultiCam")
     share_param.tracking_multiCam = TrackingMultiCam()
+    logging.info("Init RedisClient")
     share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 
     if share_param.dev_config["DATA"]["reload_database"]:
@@ -374,11 +386,18 @@ if __name__ == '__main__':
 
     for deviceID in share_param.cam_threads:
         share_param.cam_threads[deviceID].start()
-
+    logging.info(f"cam_threads started")
     share_param.detect_thread.start()
+    logging.info(f"detect_thread started")
     share_param.recogn_thread.start()
+    logging.info(f"recogn_thread started")
     share_param.imshow_thread.start()
+    logging.info(f"imshow_thread started")
     share_param.imshow_thread.join()
+    logging.info(f"imshow_thread quited")
     share_param.recogn_thread.join()
+    logging.info(f"recogn_thread quited")
     share_param.detect_thread.join()
+    logging.info(f"detect_thread quited")
+    logging.shutdown(f"Appication shutdown")
 

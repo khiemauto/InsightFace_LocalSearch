@@ -185,6 +185,7 @@ def recogn_thread_fun():
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
                 share_param.redisClient.lpush("image",support.opencv_to_base64(user_qualityscore_face_firsttime[user][4]))
+                user_qualityscore_face_firsttime[user][4] = None
                 user_qualityscore_face_firsttime[user][5] = True
                 main_logger.info(f"Push face {user} to redis")
 

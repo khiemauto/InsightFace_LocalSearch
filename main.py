@@ -116,7 +116,7 @@ def detect_thread_fun():
         del rgbs
 
         for bboxes, landmarks, (deviceId, rgb, frameID) in zip(bboxes_batch, landmarks_batch, detect_inputs):
-            main_logger.debug(f"Camera ID {deviceId} detected: {len(bboxes)} faces.")
+            main_logger.debug(f"Camera ID {deviceId} detected {len(bboxes)} faces with bboxes {bboxes}, landmarks {landmarks}")
             #Keep for recogn
             bbox_keeps = []
             landmark_keeps = []
@@ -133,7 +133,9 @@ def detect_thread_fun():
                 faceW = bbox[2] - bbox[0]
                 faceH = bbox[3] - bbox[1]
 
-                if faceW < 60 or faceH < 60:
+                print(f"faceW {faceW}, faceH {faceH}")
+
+                if faceW < share_param.sdk_config["detector"]["minface"] or faceH < share_param.sdk_config["detector"]["minface"]:
                     continue
 
                 expandLeft = max(0, bbox[0] - faceW/3)
@@ -153,7 +155,7 @@ def detect_thread_fun():
             data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
             support.add_detect_queue(data)
 
-        # print("Detect Time:", time.time() - totalTime)
+        main_logger.debug(f"Detect Time: {time.time() - totalTime}")
 
 def recogn_thread_fun():
     totalTime = time.time()
@@ -264,7 +266,7 @@ def recogn_thread_fun():
                 isNotBlur, threshnotblur = share_param.evaluter_cams[deviceID].check_not_blur(faceCrop)
                 isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(rgb, landmark)
 
-                spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
+                # spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
                 if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
@@ -318,7 +320,7 @@ def recogn_thread_fun():
         for deviceId in FPS:
             print(f"FPS {deviceId} {FPS[deviceId]}")
         
-        # print("Recogn Time:", time.time() - totalTime)
+        main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
     csvfile.close()
 
 
@@ -358,7 +360,7 @@ if __name__ == '__main__':
     main_logger.info("Init FaceRecognitionSystem")
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")
-    share_param.tracking_multiCam = TrackingMultiCam()
+    share_param.tracking_multiCam = TrackingMultiCam(share_param.sdk_config["tracking"])
     main_logger.info("Init RedisClient")
     share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 

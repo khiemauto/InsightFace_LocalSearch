@@ -4,11 +4,6 @@ import numpy as np
 
 class CustomEvaluter:
     def __init__(self, config: dict):
-
-        # self.qi = config["qi"]
-        # self.b = config["b"]
-        # self.di = config["di"]
-
         self.illumination_threshold = config["illumination_threshold"]
         self.blur_threshold = config["blur_threshold"]
         self.ratio0_min = config["ratio0_min"]
@@ -16,29 +11,6 @@ class CustomEvaluter:
         self.ratio1_max = config["ratio1_max"]
         self.ratio2_min = config["ratio2_min"]
         self.ratio2_max = config["ratio2_max"]
-    
-    def get_blur_var(self, area: float) -> float:
-        return self.qi/((1.0+self.b*self.di*area)**(1.0/max(self.b, 1.e-50)))
-
-    # def check_not_blur(self, image: np.ndarray, faceSize:float) -> Tuple[bool, float]:
-    #     if image is None or image.size == 0:
-    #         return False, 0.0, 0.0, 0.0
-
-    #     real_notblur = cv2.Laplacian(image, cv2.CV_64F).var()
-    #     standard_notblur = self.get_blur_var(image.shape[0]*image.shape[1])
-
-    #     # standard_notblur = 0.00280530*faceSize +  68.7142432
-    #     print(real_notblur, standard_notblur)
-
-    #     threshnotblur = real_notblur/standard_notblur
-    #     # print(threshnotblur)
-
-    #     if threshnotblur < self.blur_threshold:
-    #         return False, threshnotblur, real_notblur, standard_notblur
-    #     else:
-    #         return True, threshnotblur, real_notblur, standard_notblur
-
-    #     return False, threshnotblur, real_notblur, standard_notblur
 
     def check_illumination(self, image):
         if image is None or image.size == 0:

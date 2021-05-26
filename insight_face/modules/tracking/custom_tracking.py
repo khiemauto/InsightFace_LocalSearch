@@ -9,13 +9,13 @@ DESCRIPTOR_INDEX  = 1
 UPDATED_INDEX     = 2
 
 class Tracking():
-    def __init__(self) -> None:
+    def __init__(self, config: Dict) -> None:
         super().__init__()
         self.trackers = {}  #trackid: [tracker, descriptor, updated]
-        self.threshsimilarityinstant = 0.7      #Feature similarity matching between prev frame with cur frame
-        self.threshiou = 0.2                    #IOU opencv tracking
-        self.threshsimilarityiou = 0.6          #Feature similarity when using IOU opencv tracking
-        self.maxid = 1                          #Auto increament when creat new track
+        self.threshsimilarityinstant = config["threshsimilarityinstant"]
+        self.threshiou = config["threshiou"]
+        self.threshsimilarityiou = config["threshsimilarityiou"]
+        self.maxid = 1  #Auto increament when creat new track
     
     def newsession(self, frame, detectboxs: List[int]):
         """
@@ -251,21 +251,22 @@ class Tracking():
         return iou
 
 class TrackingMultiCam():
-    def __init__(self) -> None:
+    def __init__(self, config: Dict) -> None:
         super().__init__()
+        self.config = config
         self.trackers: Dict[int:Tracking] = {}
     
     def update(self, faceFrameInfos):
         """
-        faceFrameInfos: iBuffer, deviceId
-        faceinfos : bbox, landmark, faceCropExpand, descriptor, user_name, score
-        buffer_rgb : iBuffer:rgb
+        faceFrameInfos: {(iBuffer, deviceId): [faceinfos, rgb],}
+        faceinfos : [[bbox, landmark, faceCropExpand, descriptor, user_name, score],]
+        rgb : rgb image
         """
         
 
         for iBuffer, deviceId in faceFrameInfos:
             if deviceId not in self.trackers:
-                self.trackers[deviceId] = Tracking()
+                self.trackers[deviceId] = Tracking(self.config)
 
             faceInfos = faceFrameInfos[(iBuffer, deviceId)][0]
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]

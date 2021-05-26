@@ -28,7 +28,7 @@ class FaceRecognitionSDK:
         self.embedder = InsightFaceEmbedder(config["embedder"])
         # self.attr_classifier = AttributeClassifierV1(config["attributes"])
         self.database = FaissFaceStorage(config["database"])
-        self.evaluter = CustomEvaluter(config["evaluter"])
+        # self.evaluter = CustomEvaluter(config["evaluter"])
         logger.info("Finish SDK initialization")
 
     def load_database(self, path: str) -> None:

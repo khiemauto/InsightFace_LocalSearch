@@ -34,14 +34,15 @@ def cam_thread_fun(deviceID: int, camURL: str):
         cap.set(cv2.CAP_PROP_FOURCC, fourcc)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        main_logger.info(f"FPS of camera {deviceID}: {cap.get(cv2.CAP_PROP_FPS)}")
 
     FrameID = 1
-    timeStep = 1/20  # 20FPS
+    timeStep = 1/50  # 20FPS
     lastFrame = time.time()
     lastGood = time.time()
 
     while not share_param.bExit:
-        time.sleep(0.01)
+        time.sleep(0.001)
         if time.time()-lastGood>300:
             main_logger.info(f"Restart camera {camURL}")
             cap.open(camURL)
@@ -116,7 +117,7 @@ def detect_thread_fun():
         del rgbs
 
         for bboxes, landmarks, (deviceId, rgb, frameID) in zip(bboxes_batch, landmarks_batch, detect_inputs):
-            main_logger.debug(f"Camera ID {deviceId} detected {len(bboxes)} faces with bboxes {bboxes}, landmarks {landmarks}")
+            main_logger.debug(f"Camera {deviceId} detected {len(bboxes)} faces with bboxes {bboxes}, landmarks {landmarks}")
             #Keep for recogn
             bbox_keeps = []
             landmark_keeps = []
@@ -211,6 +212,7 @@ def recogn_thread_fun():
                     FPS[deviceId][0] = 0.8*FPS[deviceId][0] + 0.2*FPS[deviceId][2]
                     FPS[deviceId][2] = 0
                     FPS[deviceId][1] = time.time()
+                    main_logger.debug(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")
 
             faceFrameInfos[(iBuffer, deviceId)] = ([], rgb)     #Init faceFrameInfos
             
@@ -317,8 +319,8 @@ def recogn_thread_fun():
             
             support.add_imshow_queue(deviceId, rgbDraw)
 
-        for deviceId in FPS:
-            print(f"FPS {deviceId} {FPS[deviceId]}")
+        # for deviceId in FPS:
+        #     print(f"FPS {deviceId} {FPS[deviceId]}")
         
         main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
     csvfile.close()
@@ -338,6 +340,7 @@ def imshow_thread_fun():
             if share_param.dev_config["DEV"]["imshow"]:
                 image = cv2.resize(image, (600,600))
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                cv2.putText(image, time.strftime("%H:%M:%S"), (10,20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,0,255))
                 cv2.imshow(str(title), image)
                 # writer.write(image)
             key = cv2.waitKey(10)
@@ -355,8 +358,9 @@ if __name__ == '__main__':
     main_logger.info("Reading configs")
     share_param.sdk_config = support.get_config_yaml("configs/sdk_config.yaml")
     share_param.dev_config = support.get_config_yaml("configs/dev_config.yaml")
-    share_param.cam_infos = support.get_config_yaml("configs/cam_infos.yaml")
+    share_param.cam_infos = support.get_config_yaml("configs/cam_infos.yaml")    
     main_logger.info("Done reading configs")
+    share_param.batch_size = len(share_param.cam_infos["CamInfos"])
     main_logger.info("Init FaceRecognitionSystem")
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")

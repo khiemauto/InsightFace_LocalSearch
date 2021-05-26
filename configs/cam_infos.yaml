@@ -7,10 +7,10 @@ CamInfos:
   #   LinkRTSP: 0
   #   illumination_threshold: 0.3
   #   blur_threshold: 0.7  #0.70
-  # - DeviceID: 3
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
-  #   illumination_threshold: 0.4
-  #   blur_threshold: 0.8  #0.70
+  - DeviceID: 3
+    LinkRTSP: rtsp://admin:123456a@@10.38.61.114
+    illumination_threshold: 0.4
+    blur_threshold: 0.8  #0.70
   - DeviceID: 4
     LinkRTSP: rtsp://admin:123456a@@10.38.61.248
     illumination_threshold: 0.4

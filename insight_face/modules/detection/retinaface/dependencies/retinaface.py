@@ -44,14 +44,6 @@ class LandmarkHead(nn.Module):
 
         return out.view(out.shape[0], -1, 10)
 
-class Custom_Body(torch.nn.Module):
-    def __init__(self, body):
-        super(Custom_Body, self).__init__()
-        self.body = body
-
-    def forward(self, x):
-        y = self.body(x)
-        return list(y.values())
 
 class RetinaFace(nn.Module):
     def __init__(self, cfg=None, phase="train"):
@@ -70,7 +62,6 @@ class RetinaFace(nn.Module):
             backbone = models.resnet50()
 
         self.body = _utils.IntermediateLayerGetter(backbone, cfg["return_layers"])
-        # self.extern_body = Custom_Body(self.body)
         in_channels_stage2 = cfg["in_channel"]
         in_channels_list = [
             in_channels_stage2 * 2,
@@ -107,7 +98,6 @@ class RetinaFace(nn.Module):
 
     def forward(self, inputs):
         out = self.body(inputs)
-        # out = self.extern_body(inputs)
 
         # FPN
         fpn = self.fpn(out)

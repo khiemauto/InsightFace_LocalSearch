@@ -21,194 +21,121 @@ from argparse import ArgumentParser, SUPPRESS
 import cv2
 import numpy as np
 import logging as log
+from numpy.core.fromnumeric import resize
 from openvino.inference_engine import IECore
 import openvino
 import ngraph as ng
 
 import torch
 from insight_face.modules.detection.retinaface.model_class import RetinaFace
+from insight_face.modules.alignment.align_faces import align_and_crop_face
 import cv2
 from core import support
 import time
 sdk_config = support.get_config_yaml("configs/sdk_config.yaml")
+openvino_config = support.get_config_yaml("configs/sdk_config_openvino.yaml")
 
 detector = RetinaFace(sdk_config["detector"])
 
-# def build_argparser():
-#     parser = ArgumentParser(add_help=False)
-#     args = parser.add_argument_group("Options")
-#     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-#     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
-#                       required=True, type=str)
-#     args.add_argument("-i", "--input", help="Required. Path to an image file.",
-#                       required=True, type=str)
-#     args.add_argument("-l", "--cpu_extension",
-#                       help="Optional. Required for CPU custom layers. "
-#                            "Absolute path to a shared library with the kernels implementations.",
-#                       type=str, default=None)
-#     args.add_argument("-d", "--device",
-#                       help="Optional. Specify the target device to infer on; "
-#                            "CPU, GPU, FPGA or MYRIAD is acceptable. "
-#                            "Sample will look for a suitable plugin for device specified (CPU by default)",
-#                       default="CPU", type=str)
-#     args.add_argument("--labels", help="Optional. Labels mapping file", default=None, type=str)
-#     args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
-
-#     return parser
-
-args = {
-    "model":"weights/res50",
-    "input":"dataset/bestphotos/113900549523G.jpg",
-    "device":"CPU",
-    'cpu_extension': False,
-    "labels":"",
-    "nt":""
-}
 
 def main():
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     log.info("Loading Inference Engine")
+
+    detector_config = openvino_config["detector"]
+    detector_arch = detector_config["architecture"]
+    detector_arch_config = openvino_config[detector_arch]
+
+    print(detector_arch_config["output_names"])
     ie = IECore()
-    
+    # ie.set_config({"DYN_BATCH_ENABLED": "YES"})
     # ---1. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format ---
-    model_path = args["model"]
-    log.info(f"Loading network:\n\t{model_path}")
-    net = ie.read_network(model_path+ ".xml", model_path + ".bin")
-    # -----------------------------------------------------------------------------------------------------
+    log.info(f'Loading network: {detector_arch_config["weights_path"]}')
+    # IENetwork(xml, bin)
+    detector_net = ie.read_network(detector_arch_config["weights_path"] + ".xml", detector_arch_config["weights_path"] + ".bin")
 
-    # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
-    log.info("Device info:")
-    versions = ie.get_versions(args['device'])
-    print(f"{' ' * 8}{args['device']}")
-    print(f"{' ' * 8}MKLDNNPlugin version ......... {versions[args['device']].major}.{versions[args['device']].minor}")
-    print(f"{' ' * 8}Build ........... {versions[args['device']].build_number}")
+    embedder_net = ie.read_network("weights/iresnet34.xml", "weights/iresnet34.bin")
+    #---------------------------------2. Set batch size ---------------------------------------------------
+    detector_net.batch_size = 2
+    embedder_net.batch_size = 2
+    # batch = 1
+    # shapes = {}
+    # for input_layer in net.input_info:
+    #     new_shape = [batch] + net.input_info[input_layer].input_data.shape[1:]
+    #     shapes.update({input_layer: new_shape})
 
-    if args['cpu_extension'] and "CPU" in args['device']:
-        ie.add_extension(args['cpu_extension'], "CPU")
-        log.info(f"CPU extension loaded: {args['cpu_extension']}")
-    # -----------------------------------------------------------------------------------------------------
-
+    # log.info(f"Set batch size: {batch}")
+    # net.reshape(shapes)
     # --------------------------- 3. Read and preprocess input --------------------------------------------
-    for input_key in net.input_info:
-        print(input_key)
-        if len(net.input_info[input_key].input_data.layout) == 4:
-            n, c, h, w = net.input_info[input_key].input_data.shape
+    detector_input_name = ""
+    for input_key in detector_net.input_info:
+        if len(detector_net.input_info[input_key].input_data.layout) == 4:
+            detector_n, detector_c, detector_h, detector_w = detector_net.input_info[input_key].input_data.shape
+            detector_input_name = input_key
+            # detector_net.input_info[input_key].precision = 'I8'
+    print(detector_n, detector_c, detector_h, detector_w)
 
-    # print(n,c, h,w)
+    embedder_input_name = ""
+    for input_key in embedder_net.input_info:
+        if len(embedder_net.input_info[input_key].input_data.layout) == 4:
+            embedder_n, embedder_c, embedder_h, embedder_w = embedder_net.input_info[input_key].input_data.shape
+            embedder_input_name = input_key
+    print(embedder_n, embedder_c, embedder_h, embedder_w)
 
-    images = np.ndarray(shape=(n, c, h, w))
-    print(images.shape)
-    images_hw = []
-    for i in range(n):
-
-        image = cv2.imread("/mnt/LINUXDATA/Source/.data/face_attributes/01000-20210525T030241Z-001/01000/01022.png")
-        image = cv2.resize(image, (224,224))
-        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-        rgb = detector._preprocess(rgb)
-        detector.model_input_shape = rgb.shape
-        rgb = rgb.transpose((2, 0, 1))
-
-        print(rgb.shape)
-        images[i] = rgb
-
-        # image = cv2.imread(args['input'])
-        # ih, iw = image.shape[:-1]
-        # images_hw.append((ih, iw))
-        # log.info("File was added: ")
-        # log.info(f"        {args['input']}")
-        # if (ih, iw) != (h, w):
-        #     log.warning(f"Image {args['input']} is resized from {image.shape[:-1]} to {(h, w)}")
-        #     image = cv2.resize(image, (w, h))
-        # image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        # images[i] = image
-    # -----------------------------------------------------------------------------------------------------
+    # print(n,c,h,w)
 
     # --------------------------- 4. Configure input & output ---------------------------------------------
-    # --------------------------- Prepare input blobs -----------------------------------------------------
-    log.info("Preparing input blobs")
-    assert (len(net.input_info.keys()) == 1 or len(
-        net.input_info.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
-    out_blob = next(iter(net.outputs))
-    input_name, input_info_name = "", ""
+    # log.info('Preparing output blobs')
+    # output_names = net.outputs.keys()
+    # output_infos = net.outputs.values()
 
-    for input_key in net.input_info:
-        if len(net.input_info[input_key].layout) == 4:
-            input_name = input_key
-            net.input_info[input_key].precision = 'U8'
-        elif len(net.input_info[input_key].layout) == 2:
-            input_info_name = input_key
-            net.input_info[input_key].precision = 'FP32'
-            if net.input_info[input_key].input_data.shape[1] != 3 and net.input_info[input_key].input_data.shape[1] != 6 or \
-                net.input_info[input_key].input_data.shape[0] != 1:
-                log.error('Invalid input info. Should be 3 or 6 values length.')
-
-    data = {}
-    data[input_name] = images
-
-    if input_info_name != "":
-        detection_size = net.input_info[input_info_name].input_data.shape[1]
-        infos = np.ndarray(shape=(n, detection_size), dtype=float)
-        for i in range(n):
-            infos[i, 0] = h
-            infos[i, 1] = w
-            for j in range(2, detection_size):
-                infos[i, j] = 1.0
-        data[input_info_name] = infos
-
-    print(input_name)
-
-    # --------------------------- Prepare output blobs ----------------------------------------------------
-    log.info('Preparing output blobs')
-
-    # output_name, output_info = "", None
-
-    output_names = []
-    output_infos = []
-
-    func = ng.function_from_cnn(net)
-
-    # print(net.outputs)
-    if func:
-        ops = func.get_ordered_ops()
-        for op in ops:
-            if op.friendly_name in net.outputs:
-                # print(op)
-                output_names.append(op.friendly_name)
-                output_infos.append(net.outputs[op.friendly_name])
-                # break
-    else:
-        output_name = list(net.outputs.keys())[0]
-        output_info = net.outputs[output_name]
-
-    # print(output_names)
-    # print(output_infos)
-
-    if len(output_names) == 0:
-        log.error("Can't find a DetectionOutput layer in the topology")
-    # print(output_info)
-    output_dims = []
+    # if len(output_names) == 0:
+    #     log.error("Can't find a ouput layer in the topology")
+    # output_dims = []
     
-    for output_info in output_infos:
-        output_dims.append(output_info.shape)
+    # for output_info in output_infos:
+    #     output_dims.append(output_info.shape)
 
-    print(output_dims)
-    if len(output_dims) != 3:
-        log.error("Incorrect output dimensions for Retina model")
+    # if len(output_dims) != 3:
+    #     log.error("Incorrect output dimensions for Retina model")
 
-    for output_info in output_infos:
-        output_info.precision = "FP16"
+    # for output_info in detector_net.outputs.values():
+    #     output_info.precision = "FP16"
+    # for output_info in embedder_net.outputs.values():
+    #     output_info.precision = "FP16"
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- Performing inference ----------------------------------------------------
     log.info("Loading model to the device")
-    exec_net = ie.load_network(network=net, device_name=args['device'])
-    log.info("Creating infer request and starting inference")
+    # exec_net = ie.load_network(net, 'CPU', {"DYN_BATCH_ENABLED": "YES"})
+    detector_exec_net = ie.load_network(network=detector_net, device_name=openvino_config['detector']['device'])
+    embedder_exec_net = ie.load_network(network=embedder_net, device_name=openvino_config['detector']['device'])
     
     cap = cv2.VideoCapture(0)
+    FPS = [20.0, time.time(), 0]
+
+    data = {}
+
     for i in range(10000):
-        images = np.ndarray(shape=(n, c, h, w))
-        for i in range(n):
+        if time.time()-FPS[1] < 1.0:
+            FPS[2] += 1
+        else:
+            FPS[0] = 0.8*FPS[0] + 0.2*FPS[2]
+            FPS[2] = 0
+            FPS[1] = time.time()
+            print(f"Pipleline FPS : {FPS[0]}")
+
+
+        # image = self._preprocess(image)
+        # self.model_input_shape = image.shape
+        # raw_pred = self._predict_raw(image)
+        # bboxes, landms = self._postprocess(raw_pred)
+
+
+        raw_images = []
+        images = np.ndarray(shape=(detector_n, detector_c, detector_h, detector_w ))
+
+        for i in range(detector_n):
 
             grabed, frame= cap.read()
             if not grabed:
@@ -216,57 +143,85 @@ def main():
 
             xstart = (frame.shape[1] - frame.shape[0])//2
             frame = frame[:, xstart: xstart + frame.shape[0]]
-            image = cv2.resize(frame, (224,224))
+            raw_images.append(frame)
 
-            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             rgb = detector._preprocess(rgb)
+
+            print(rgb.shape)
             detector.model_input_shape = rgb.shape
             rgb = rgb.transpose((2, 0, 1))
 
             images[i] = rgb
 
-        # data = {}
-        data[input_name] = images
-
-        # if input_info_name != "":
-        #     detection_size = net.input_info[input_info_name].input_data.shape[1]
-        #     infos = np.ndarray(shape=(n, detection_size), dtype=float)
-        #     for i in range(n):
-        #         infos[i, 0] = h
-        #         infos[i, 1] = w
-        #         for j in range(2, detection_size):
-        #             infos[i, j] = 1.0
-        #     data[input_info_name] = infos
-
+   
+        # data[detector_input_name] = images
         preTime = time.time()
-        res = exec_net.infer(inputs=data)
+        res = detector_exec_net.infer(inputs={detector_input_name:images})
         print("Detect:", time.time()-preTime)
-        raw_pred = (torch.from_numpy(res["762"]),torch.from_numpy(res["837"]),torch.from_numpy(res["836"]))
 
-        bboxes, landms = detector._postprocess(raw_pred)
-        converted_landmarks = []
-        # convert to our landmark format (2,5)
-        for landmarks_set in landms:
-            x_landmarks = []
-            y_landmarks = []
-            for i, lm in enumerate(landmarks_set):
-                if i % 2 == 0:
-                    x_landmarks.append(lm)
-                else:
-                    y_landmarks.append(lm)
-            converted_landmarks.append(x_landmarks + y_landmarks)
+        # print(res["515"].shape)
+        for image, re0, re1, re2 in zip(raw_images , res[detector_arch_config["output_names"][0]],res[detector_arch_config["output_names"][1]], res[detector_arch_config["output_names"][2]]):
+            draw_image = image.copy()
+    
+            raw_pred = (torch.from_numpy(re0),torch.from_numpy(re1),torch.from_numpy(re2))
 
-        landmarks = np.array(converted_landmarks)
+            bboxes, landms = detector._postprocess(raw_pred)
+            converted_landmarks = []
+            # convert to our landmark format (2,5)
+            for landmarks_set in landms:
+                x_landmarks = []
+                y_landmarks = []
+                for i, lm in enumerate(landmarks_set):
+                    if i % 2 == 0:
+                        x_landmarks.append(lm)
+                    else:
+                        y_landmarks.append(lm)
+                converted_landmarks.append(x_landmarks + y_landmarks)
 
-        for bbox, landmark in zip( bboxes, landmarks):
-            cv2.rectangle(image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
-            y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-            cv2.putText(image, f"{bbox[4]}", (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-            
+            landmarks = np.array(converted_landmarks)
 
-        cv2.imshow("RESULT", image)
+            for bbox, landmark in zip( bboxes, landmarks):
+                
+                # draw_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+                face = align_and_crop_face(image, landmark, size=(112, 112))
+                face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+
+                face = face.astype(np.float32)/255.0
+
+                # print(face.shape)
+                mean = [0.5] * 3
+                std = [0.5 * 256 / 255] * 3
+                face = (face-mean)/std
+
+                face = face.transpose((2, 0, 1))
+
+                # _preprocess
+
+
+
+                face = np.expand_dims(face, axis=0)
+                print("input_embedd.shape", face.shape)
+
+                # data[embedder_input_name] = input_embedd
+                preTime = time.time()
+                res = embedder_exec_net.infer(inputs={embedder_input_name:face})
+                print("Embedd:", time.time()-preTime)
+
+                # cv2.imshow("Face Align", face)
+
+                cv2.rectangle(draw_image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+                y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
+                cv2.putText(draw_image, f"{bbox[4]}", (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+                # print(landmark)
+                # landmark = landmark.reshape((5,2), order='F')
+                # for pts in landmark:
+                    # cv2.drawMarker(draw_image, (int(pts[0]), int(pts[1])), (0,255,0), cv2.MARKER_CROSS, markerSize=5, thickness=2)
+                # print(landmark)
+                
+            cv2.imshow("RESULT", draw_image)
         cv2.waitKey(10)
 
 

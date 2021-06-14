@@ -3,6 +3,7 @@ import cv2
 import logging
 from typing import List, Tuple
 from pathlib import Path
+from openvino.inference_engine import IECore
 
 from .modules.detection.retinaface.model_class import RetinaFace
 from .modules.recognition.insightface.insightface import InsightFaceEmbedder
@@ -22,10 +23,10 @@ class FaceRecognitionSDK:
         if config is None:
             path_to_default_config = Path(Path(__file__).parent, "config/config.yaml").as_posix()
             config = read_yaml(path_to_default_config)
-
         logger.info("Start SDK initialization.")
-        self.detector = RetinaFace(config["detector"])
-        self.embedder = InsightFaceEmbedder(config["embedder"])
+        self.ie = IECore()
+        self.detector = RetinaFace(self.ie, config["detector"])
+        self.embedder = InsightFaceEmbedder(self.ie, config["embedder"])
         # self.attr_classifier = AttributeClassifierV1(config["attributes"])
         self.database = FaissFaceStorage(config["database"])
         # self.evaluter = CustomEvaluter(config["evaluter"])

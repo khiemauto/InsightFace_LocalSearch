@@ -184,32 +184,32 @@ class RetinaFace(BaseFaceDetector):
         pred = self.model(imgs)
         return pred
 
-    def _postprocess_batch(self, raw_predictions: List[Tuple[Tensor, Tensor, Tensor]]) -> List[Tuple[np.ndarray, np.ndarray]]:
+    def _postprocess_batch(self, raw_predictions: List[Tuple[Tensor, Tensor, Tensor]], preprocess_sizes) -> List[Tuple[np.ndarray, np.ndarray]]:
         dets_batch = []
         landms_batch = []
         locs, confs, landmss = raw_predictions
         # print(len(locs), len(confs), len(landmss))
-        for loc, conf, landms in zip(locs, confs, landmss):
+        for loc, conf, landms, preprocess_size in zip(locs, confs, landmss, preprocess_sizes):
             # print(len(raw_prediction[0]), len(raw_prediction[1]), len(raw_prediction[2]))
             # loc, conf, landms = raw_prediction
-            img_h, img_w = self.model_input_shape[:2]
-            scale = torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float)
-            scale = scale.to(self.device)
+            # img_h, img_w = self.model_input_shape[:2]
+            # scale = torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float)
+            # scale = scale.to(self.device)
 
-            priorbox = PriorBox(self.model_config, image_size=(img_h, img_w))
+            priorbox = PriorBox(self.model_config, image_size=(preprocess_size[0], preprocess_size[1]))
             priors = priorbox.forward()
             priors = priors.to(self.device)
             prior_data = priors.data
             boxes = decode(loc.data.squeeze(0), prior_data, self.model_config["variance"])
-            boxes = boxes * scale / self.resize_scale
+            # boxes = boxes * scale / self.resize_scale
             boxes = boxes.cpu().numpy()
 
             scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
 
             landms = decode_landm(landms.data.squeeze(0), prior_data, self.model_config["variance"])
-            scale1 = torch.tensor([img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h], dtype=torch.float)
-            scale1 = scale1.to(self.device)
-            landms = landms * scale1 / self.resize_scale
+            # scale1 = torch.tensor([preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0]], dtype=torch.float)
+            # scale1 = scale1.to(self.device)
+            # landms = landms * scale1 / self.resize_scale
             landms = landms.cpu().numpy()
 
             # ignore low scores
@@ -237,16 +237,60 @@ class RetinaFace(BaseFaceDetector):
 
         return dets_batch, landms_batch
 
-    def predict_batch(self, images: List[np.ndarray]) -> List[Tuple[np.ndarray, np.ndarray]]:
-        images = self._preprocess_batch(images)
-        self.model_input_shape = images[0].shape
-        raw_preds = self._predict_raw_batch(images)
-        bboxes_batch, landms_batch = self._postprocess_batch(raw_preds)
+    # def predict_batch(self, images: List[np.ndarray]) -> List[Tuple[np.ndarray, np.ndarray]]:
+    #     images = self._preprocess_batch(images)
+    #     self.model_input_shape = images[0].shape
+    #     raw_preds = self._predict_raw_batch(images)
+    #     bboxes_batch, landms_batch = self._postprocess_batch(raw_preds)
 
-        # print(len(bboxes_batch), len(landms_batch))
+    #     # print(len(bboxes_batch), len(landms_batch))
+
+    #     landmarks_batch = []
+    #     for bboxes, landms in zip(bboxes_batch, landms_batch):
+    #         converted_landmarks = []
+    #         # convert to our landmark format (2,5)
+    #         for landmarks_set in landms:
+    #             x_landmarks = []
+    #             y_landmarks = []
+    #             for i, lm in enumerate(landmarks_set):
+    #                 if i % 2 == 0:
+    #                     x_landmarks.append(lm)
+    #                 else:
+    #                     y_landmarks.append(lm)
+    #             converted_landmarks.append(x_landmarks + y_landmarks)
+
+    #         landmarks_batch.append(np.array(converted_landmarks))
+
+    #     return bboxes_batch, landmarks_batch
+
+
+
+    def predict_batch(self, images: List[np.ndarray]) -> List[Tuple[np.ndarray, np.ndarray]]:
+        origin_sizes = []
+        for image in images:
+            origin_sizes.append(image.shape[:2])
+
+        images = self._preprocess_batch(images)
+        preprocess_sizes = []
+        for image in images:
+            preprocess_sizes.append(image.shape[:2])
+
+        # self.model_input_shape = images[0].shape
+        raw_preds = self._predict_raw_batch(images)
+        bboxes_batch, landms_batch = self._postprocess_batch(raw_preds, preprocess_sizes)
+
+        unscale_bboxes_batch = []
+        unscale_landms_batch = []
+        for origin_size, boxes, landms in zip(origin_sizes, bboxes_batch, landms_batch):
+            box_scale = np.array([origin_size[1], origin_size[0], origin_size[1], origin_size[0], 1], dtype=np.float32)
+            landmark_scale = np.array([origin_size[1], origin_size[0], origin_size[1], origin_size[0], origin_size[1], origin_size[0], origin_size[1], origin_size[0], origin_size[1], origin_size[0]], dtype=np.float32)
+            boxes = boxes * box_scale
+            landms = landms * landmark_scale
+            unscale_bboxes_batch.append(boxes)
+            unscale_landms_batch.append(landms)
 
         landmarks_batch = []
-        for bboxes, landms in zip(bboxes_batch, landms_batch):
+        for landms in unscale_landms_batch:
             converted_landmarks = []
             # convert to our landmark format (2,5)
             for landmarks_set in landms:
@@ -261,4 +305,4 @@ class RetinaFace(BaseFaceDetector):
 
             landmarks_batch.append(np.array(converted_landmarks))
 
-        return bboxes_batch, landmarks_batch
+        return unscale_bboxes_batch, landmarks_batch

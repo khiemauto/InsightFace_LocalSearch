@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 
 
@@ -16,10 +15,10 @@ def decode(loc, priors, variances):
         decoded bounding box predictions
     """
 
-    boxes = torch.cat(
+    boxes = np.concatenate(
         (
             priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
-            priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1]),
+            priors[:, 2:] * np.exp(loc[:, 2:] * variances[1]),
         ),
         1,
     )
@@ -40,7 +39,7 @@ def decode_landm(pre, priors, variances):
     Return:
         decoded landm predictions
     """
-    landms = torch.cat(
+    landms = np.concatenate(
         (
             priors[:, :2] + pre[:, :2] * variances[0] * priors[:, 2:],
             priors[:, :2] + pre[:, 2:4] * variances[0] * priors[:, 2:],
@@ -48,7 +47,7 @@ def decode_landm(pre, priors, variances):
             priors[:, :2] + pre[:, 6:8] * variances[0] * priors[:, 2:],
             priors[:, :2] + pre[:, 8:10] * variances[0] * priors[:, 2:],
         ),
-        dim=1,
+        1,
     )
     return landms
 

@@ -7,44 +7,56 @@ from .nets import iresnet
 
 from ..base_embedder import BaseFaceEmbedder
 
+from pathlib import Path
+import yaml
 
 class InsightFaceEmbedder(BaseFaceEmbedder):
 
     """Implements inference of face recognition nets from InsightFace project."""
 
-    def __init__(self, config: dict):
-
+    def __init__(self, ie, config: dict):
+        self.config = config
         self.device = config["device"]
         architecture = config["architecture"]
 
-        if architecture == "iresnet34":
-            self.embedder = iresnet.iresnet34(pretrained=True)
-        elif architecture == "iresnet50":
-            self.embedder = iresnet.iresnet50(pretrained=True)
-        elif architecture == "iresnet100":
-            self.embedder = iresnet.iresnet100(pretrained=True)
-        else:
-            raise ValueError(f"Unsupported network architecture: {architecture}")
+        path_to_model_config = Path(Path(__file__).parent, "config.yaml").as_posix()
+        with open(path_to_model_config, "r") as fp:
+            self.model_config = yaml.load(fp, Loader=yaml.FullLoader)
 
-        self.embedder.eval()
-        self.embedder.to(self.device)
+        if architecture not in self.model_config.keys():
+            raise ValueError(f"Unsupported backbone: {architecture}!")
 
-        mean = [0.5] * 3
-        std = [0.5 * 256 / 255] * 3
+        self.model_config = self.model_config[architecture]
 
-        self.preprocess = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
+        self.net = ie.read_network(self.model_config["weights_path"] + ".xml", self.model_config["weights_path"] + ".bin")
+        self.batch_size = config["batch_size"]
+        self.net.batch_size = self.batch_size
+        self.input_name = self.model_config["input_name"]
+        self.output_name = self.model_config["output_name"]
+        self.embedder = ie.load_network(network=self.net, device_name="CPU", config={"DYN_BATCH_ENABLED": "YES"})
+
+        self.mean = [0.5] * 3
+        self.std = [0.5 * 256 / 255] * 3
+        self.preprocess = transforms.Compose([transforms.ToTensor(), transforms.Normalize(self.mean, self.std)])
+
+    # def preprocess(self, face:np.ndarray) -> np.ndarray:
+    #     face = face.astype(np.float32)/255.0
+    #     face = (face-self.mean)/self.std
+    #     face = face.transpose((2, 0, 1))
+    #     return face
 
     def _preprocess(self, face: np.ndarray) -> np.ndarray:
-        face_tensor = self.preprocess(face).unsqueeze(0).to(self.device)
+        face_tensor = self.preprocess(face)
+        face_tensor = np.expand_dims(face_tensor, axis=0)
         return face_tensor
 
     def _predict_raw(self, face: np.ndarray) -> np.ndarray:
-        with torch.no_grad():
-            features = self.embedder(face)
+        self.embedder.requests[0].infer(inputs= {self.input_name: face})
+        features = self.embedder.requests[0].outputs[self.output_name]
         return features
 
     def _postprocess(self, raw_prediction: np.ndarray) -> np.ndarray:
-        descriptor = raw_prediction[0].cpu().numpy()
+        descriptor = raw_prediction[0]
         descriptor = descriptor / np.linalg.norm(descriptor)
         return descriptor
 
@@ -52,22 +64,28 @@ class InsightFaceEmbedder(BaseFaceEmbedder):
         return self.embedder
 
     #Batch run
-    def _preprocess_batch(self, faces: List[np.ndarray]) -> List[torch.Tensor]:
+    def _preprocess_batch(self, faces: List[np.ndarray]) -> List[np.ndarray]:
         face_tensors = []
         for face in faces:
             face_tensors.append(self.preprocess(face))
         return face_tensors
 
-    def _predict_raw_batch(self, faces: List[torch.Tensor]) -> torch.Tensor:
-        with torch.no_grad():
-            faces = torch.stack(faces).to(self.device)
-            features = self.embedder(faces)
+    def _predict_raw_batch(self, faces: List[np.ndarray]) -> np.ndarray:
+        if len(faces) > self.batch_size:
+            raise NotImplementedError
+        input_raw = np.zeros(shape=[self.batch_size, 3, self.config["image_size"], self.config["image_size"]], dtype=np.float32)
+        for i, face in enumerate(faces):
+            input_raw[i] = face
+        self.embedder.requests[0].set_batch(len(faces))
+        self.embedder.requests[0].infer(inputs= {self.input_name: input_raw})
+        features = self.embedder.requests[0].outputs[self.output_name][:len(faces)]
         return features
 
-    def _postprocess_batch(self, raw_predictions: torch.Tensor) -> np.ndarray:
-        raw_predictions = raw_predictions.cpu().numpy()
+    def _postprocess_batch(self, raw_predictions: np.ndarray) -> np.ndarray:
         descriptors = raw_predictions / np.linalg.norm(raw_predictions, axis=1)[:,None]
         return descriptors
     
     def run_batch(self, images: List[np.ndarray]) -> List[np.ndarray]:
+        if len(images) == 0:
+            return []
         return self._postprocess_batch(self._predict_raw_batch(self._preprocess_batch(images)))

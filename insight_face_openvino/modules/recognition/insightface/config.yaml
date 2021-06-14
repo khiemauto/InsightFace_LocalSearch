@@ -1,0 +1,14 @@
+iresnet34:
+  weights_path: weights/iresnet34
+  input_name: "input.1"
+  output_name: "475"
+
+iresnet50:
+  weights_path: weights/iresnet50
+  input_name: "input.1"
+  output_name: "683"
+
+iresnet100:
+  weights_path: weights/iresnet100
+  input_name: "input.1"
+  output_name: "1333"

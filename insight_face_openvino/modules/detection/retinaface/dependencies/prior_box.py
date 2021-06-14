@@ -1,7 +1,6 @@
-import torch
+import numpy as np
 from itertools import product as product
 from math import ceil
-
 
 class PriorBox(object):
     def __init__(self, cfg, image_size=None, phase="train"):
@@ -27,7 +26,7 @@ class PriorBox(object):
                         anchors += [cx, cy, s_kx, s_ky]
 
         # back to torch land
-        output = torch.Tensor(anchors).view(-1, 4)
+        output = np.array(anchors).reshape(-1, 4)
         if self.clip:
             output.clamp_(max=1, min=0)
         return output

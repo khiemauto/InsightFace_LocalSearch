@@ -210,7 +210,7 @@ def recogn_thread_fun():
                 if time.time()-FPS[deviceId][1] < 1.0:
                     FPS[deviceId][2] += 1
                 else:
-                    FPS[deviceId][0] = 0.8*FPS[deviceId][0] + 0.2*FPS[deviceId][2]
+                    FPS[deviceId][0] = 0.9*FPS[deviceId][0] + 0.1*FPS[deviceId][2]
                     FPS[deviceId][2] = 0
                     FPS[deviceId][1] = time.time()
                     main_logger.debug(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")

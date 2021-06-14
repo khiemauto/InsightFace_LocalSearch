@@ -381,6 +381,8 @@ if __name__ == '__main__':
     share_param.cam_infos = support.get_config_yaml("configs/cam_infos.yaml")    
     main_logger.info("Done reading configs")
     share_param.batch_size = len(share_param.cam_infos["CamInfos"])
+    share_param.sdk_config["detector"]["batch_size"] = share_param.batch_size
+    share_param.sdk_config["embedder"]["batch_size"] = share_param.batch_size*3
     main_logger.info("Init FaceRecognitionSystem")
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")

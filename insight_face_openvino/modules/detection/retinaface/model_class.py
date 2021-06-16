@@ -3,6 +3,7 @@ import numpy as np
 import yaml
 import cv2
 from typing import List
+import os
 
 from torch import Tensor
 from pathlib import Path
@@ -13,11 +14,12 @@ from ..base_detector import BaseFaceDetector
 from .dependencies.utils import decode, decode_landm, py_cpu_nms
 from .dependencies.prior_box import PriorBox
 
-model_urls = {
-    "res50": "https://bitbucket.org/khiembka1992/data/raw/abe66827e127477581587e7e90cdefaab459c426/InsightFace/Resnet50_Final.pth",
-    "mnet1": "https://bitbucket.org/khiembka1992/data/raw/abe66827e127477581587e7e90cdefaab459c426/InsightFace/mobilenet0.25_Final.pth",
-}
+from ....utils.load_utils import get_file_from_url
 
+model_urls = {
+    "mnet1": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/mnet1",
+    "res50": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/res50"
+}
 class RetinaFace(BaseFaceDetector):
     def __init__(self, ie, config: dict):
         """
@@ -35,7 +37,9 @@ class RetinaFace(BaseFaceDetector):
 
         self.model_config = self.model_config[backbone]
 
-        self.net = ie.read_network(self.model_config["weights_path"] + ".xml", self.model_config["weights_path"] + ".bin")
+        xml_file = get_file_from_url(url=model_urls[backbone]+".xml", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        bin_file = get_file_from_url(url=model_urls[backbone]+".bin", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        self.net = ie.read_network(xml_file, bin_file)
         self.batch_size = config["batch_size"]
         self.net.batch_size = self.batch_size
         self.input_name = self.model_config["input_name"]

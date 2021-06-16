@@ -2,9 +2,16 @@ from typing import List
 import numpy as np
 from pathlib import Path
 import yaml
+import os
 
 from ..base_embedder import BaseFaceEmbedder
+from ....utils.load_utils import get_file_from_url
 
+model_urls = {
+    "iresnet34": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/iresnet34",
+    "iresnet50": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/iresnet50",
+    "iresnet100": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/iresnet100"
+}
 class InsightFaceEmbedder(BaseFaceEmbedder):
     """Implements inference of face recognition nets from InsightFace project."""
     def __init__(self, ie, config: dict):
@@ -20,7 +27,10 @@ class InsightFaceEmbedder(BaseFaceEmbedder):
             raise ValueError(f"Unsupported backbone: {architecture}!")
 
         self.model_config = self.model_config[architecture]
-        self.net = ie.read_network(self.model_config["weights_path"] + ".xml", self.model_config["weights_path"] + ".bin")
+        
+        xml_file = get_file_from_url(url=model_urls[architecture]+".xml", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        bin_file = get_file_from_url(url=model_urls[architecture]+".bin", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        self.net = ie.read_network(xml_file, bin_file)
         self.batch_size = config["batch_size"]
         self.net.batch_size = self.batch_size
         self.input_name = self.model_config["input_name"]

@@ -8,3 +8,7 @@ Run application
 ```python
 python main.py
 ```
+# Fastest with cpu
+```python
+python main_openvino.py
+```

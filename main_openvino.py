@@ -197,8 +197,7 @@ def recogn_thread_fun():
             continue
 
         recogn_inputs = []
-        # while not share_param.detect_queue.empty():
-        while not share_param.detect_queue.empty() and len(recogn_inputs)<share_param.batch_size:
+        while not share_param.detect_queue.empty() and len(recogn_inputs)<share_param.sdk_config["embedder"]["batch_size"]:
             recogn_inputs.append(share_param.detect_queue.get())
         
         faceInfos = []      #FaceInformation of all frame in batch
@@ -287,8 +286,6 @@ def recogn_thread_fun():
                 isillumination, threshillumination = share_param.evaluter_cams[deviceID].check_illumination(faceCrop)
                 isNotBlur, threshnotblur = share_param.evaluter_cams[deviceID].check_not_blur(faceCrop)
                 isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(rgb, landmark)
-
-                # spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
                 if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
@@ -338,18 +335,12 @@ def recogn_thread_fun():
                         main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)
-
-        # for deviceId in FPS:
-        #     print(f"FPS {deviceId} {FPS[deviceId]}")
         
         main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
     csvfile.close()
 
 
 def imshow_thread_fun():
-    # writer = cv2.VideoWriter("appsrc ! videoconvert ! videoscale ! video/x-raw,width=320,height=240 ! theoraenc ! oggmux ! tcpserversink host=10.38.61.124 port=8080 recover-policy=keyframe sync-method=latest-keyframe unit-format=buffers units-max=1 buffers-max=0 sync=true ", 
-                            # 0, 5, (320, 240), True)
-             
     while not share_param.bExit:
         if not share_param.bRunning:
             time.sleep(1)
@@ -362,15 +353,11 @@ def imshow_thread_fun():
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 cv2.putText(image, time.strftime("%H:%M:%S"), (10,20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,0,255))
                 cv2.imshow(str(title), image)
-                # writer.write(image)
             key = cv2.waitKey(10)
 
             if key == ord("q"):
                 share_param.bExit = True
                 main_logger.info(f"The shutdown command has been sent")
-
-
-    # writer.release()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':

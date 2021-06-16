@@ -1,19 +1,12 @@
 from typing import List
 import numpy as np
-import torch
-from torchvision import transforms
-
-from .nets import iresnet
-
-from ..base_embedder import BaseFaceEmbedder
-
 from pathlib import Path
 import yaml
 
+from ..base_embedder import BaseFaceEmbedder
+
 class InsightFaceEmbedder(BaseFaceEmbedder):
-
     """Implements inference of face recognition nets from InsightFace project."""
-
     def __init__(self, ie, config: dict):
         self.config = config
         self.device = config["device"]
@@ -27,23 +20,20 @@ class InsightFaceEmbedder(BaseFaceEmbedder):
             raise ValueError(f"Unsupported backbone: {architecture}!")
 
         self.model_config = self.model_config[architecture]
-
         self.net = ie.read_network(self.model_config["weights_path"] + ".xml", self.model_config["weights_path"] + ".bin")
         self.batch_size = config["batch_size"]
         self.net.batch_size = self.batch_size
         self.input_name = self.model_config["input_name"]
         self.output_name = self.model_config["output_name"]
         self.embedder = ie.load_network(network=self.net, device_name="CPU", config={"DYN_BATCH_ENABLED": "YES"})
-
         self.mean = [0.5] * 3
         self.std = [0.5 * 256 / 255] * 3
-        self.preprocess = transforms.Compose([transforms.ToTensor(), transforms.Normalize(self.mean, self.std)])
 
-    # def preprocess(self, face:np.ndarray) -> np.ndarray:
-    #     face = face.astype(np.float32)/255.0
-    #     face = (face-self.mean)/self.std
-    #     face = face.transpose((2, 0, 1))
-    #     return face
+    def preprocess(self, face:np.ndarray) -> np.ndarray:
+        face = face.astype(np.float32)/255.0
+        face = (face-self.mean)/self.std
+        face = face.transpose((2, 0, 1))
+        return face
 
     def _preprocess(self, face: np.ndarray) -> np.ndarray:
         face_tensor = self.preprocess(face)

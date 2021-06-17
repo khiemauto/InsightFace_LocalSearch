@@ -3,24 +3,25 @@ import numpy as np
 import yaml
 import cv2
 from typing import List
+import os
 
 from torch import Tensor
 from pathlib import Path
 from typing import Tuple
+import time
 
 from ..base_detector import BaseFaceDetector
-from .dependencies.retinaface import RetinaFace as ModelClass
-from ....utils.load_utils import load_model
 from .dependencies.utils import decode, decode_landm, py_cpu_nms
 from .dependencies.prior_box import PriorBox
 
-model_urls = {
-    "res50": "https://bitbucket.org/khiembka1992/data/raw/abe66827e127477581587e7e90cdefaab459c426/InsightFace/Resnet50_Final.pth",
-    "mnet1": "https://bitbucket.org/khiembka1992/data/raw/abe66827e127477581587e7e90cdefaab459c426/InsightFace/mobilenet0.25_Final.pth",
-}
+from ....utils.load_utils import get_file_from_url
 
+model_urls = {
+    "mnet1": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/mnet1",
+    "res50": "https://bitbucket.org/khiembka1992/data/raw/1b859b3a22ade2e822aab481a2ecc7334026c078/OpenVino/res50"
+}
 class RetinaFace(BaseFaceDetector):
-    def __init__(self, config: dict):
+    def __init__(self, ie, config: dict):
         """
         Args:
             config: detector config for configuration of model from outside
@@ -35,11 +36,19 @@ class RetinaFace(BaseFaceDetector):
             raise ValueError(f"Unsupported backbone: {backbone}!")
 
         self.model_config = self.model_config[backbone]
-        self.device = torch.device(self.config["device"])
-        self.model = ModelClass(self.model_config, phase="test")
-        self.model = load_model(self.model, model_urls[backbone], True if self.config["device"] == "cpu" else False)
-        self.model.eval()
-        self.model.to(self.device)
+
+        xml_file = get_file_from_url(url=model_urls[backbone]+".xml", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        bin_file = get_file_from_url(url=model_urls[backbone]+".bin", model_dir=os.path.dirname(self.model_config["weights_path"]))
+        self.net = ie.read_network(xml_file, bin_file)
+        self.batch_size = config["batch_size"]
+        self.net.batch_size = self.batch_size
+        self.input_name = self.model_config["input_name"]
+        self.output_names = self.model_config["output_names"]
+        self.model = ie.load_network(network=self.net, device_name="CPU")
+
+        priorbox = PriorBox(self.model_config, image_size=(self.config["image_size"], self.config["image_size"]))
+        self.prior_data = priorbox.forward()
+
         self.model_input_shape = None
         self.resize_scale = None
 
@@ -47,57 +56,42 @@ class RetinaFace(BaseFaceDetector):
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         img = np.float32(image)
         target_size = self.config["image_size"]
-        max_size = 2150
         im_shape = img.shape
-        im_size_min = np.min(im_shape[:2])
-        im_size_max = np.max(im_shape[:2])
-        resize = float(target_size) / float(im_size_min)
+        im_shape = img.shape
+        img_width = im_shape[1]
+        img_height = im_shape[0]
 
-        # prevent bigger axis from being more than max_size:
-        if np.round(resize * im_size_max) > max_size:
-            resize = float(max_size) / float(im_size_max)
-        if self.config.get("origin_size", False):
-            resize = 1
-
-        self.resize_scale = resize
-        if resize != 1:
-            img = cv2.resize(image, None, None, fx=resize, fy=resize, interpolation=cv2.INTER_LINEAR)
+        self.resize_scale = [float(target_size) / float(img_width), float(target_size) / float(img_height)]
+        img = cv2.resize(image, (self.config["image_size"], self.config["image_size"]))
 
         img = img.astype(np.float32)
         img -= np.asarray((104, 117, 123), dtype=np.float32)
         return img
 
-    def _predict_raw(self, image: np.ndarray) -> Tuple[Tensor, Tensor, Tensor]:
+    def _predict_raw(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         img = image.transpose((2, 0, 1))
-        img = torch.from_numpy(img).unsqueeze(0)
-        img = img.to(self.device)
-        pred = self.model(img)
-        # loc = loc.detach().cpu().numpy()
-        # conf = conf.detach().cpu().numpy()
-        # landms = landms.detach().cpu().numpy()
+        img = np.expand_dims(img, axis=0)
+        
+        self.model.requests[0].infer(inputs= {self.input_name: img})
+        pred = self.model.requests[0].outputs
+
+        pred = (pred[self.output_names[0]],pred[self.output_names[1]], pred[self.output_names[2]])
         return pred
 
-    def _postprocess(self, raw_prediction: Tuple[Tensor, Tensor, Tensor]) -> Tuple[np.ndarray, np.ndarray]:
+    def _postprocess(self, raw_prediction: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         loc, conf, landms = raw_prediction
         img_h, img_w = self.model_input_shape[:2]
-        scale = torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float)
-        scale = scale.to(self.device)
+        scale = np.array([img_w, img_h, img_w, img_h], dtype=np.float32)
+        boxes = decode(loc, self.prior_data, self.model_config["variance"])
+        resize_scale = np.array(self.resize_scale*2, dtype=np.float32)
+        boxes = boxes * scale / resize_scale
 
-        priorbox = PriorBox(self.model_config, image_size=(img_h, img_w))
-        priors = priorbox.forward()
-        priors = priors.to(self.device)
-        prior_data = priors.data
-        boxes = decode(loc.data.squeeze(0), prior_data, self.model_config["variance"])
-        boxes = boxes * scale / self.resize_scale
-        boxes = boxes.cpu().numpy()
+        scores = conf[:, 1]
 
-        scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
-
-        landms = decode_landm(landms.data.squeeze(0), prior_data, self.model_config["variance"])
-        scale1 = torch.tensor([img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h], dtype=torch.float)
-        scale1 = scale1.to(self.device)
-        landms = landms * scale1 / self.resize_scale
-        landms = landms.cpu().numpy()
+        landms = decode_landm(landms, self.prior_data, self.model_config["variance"])
+        scale1 = np.array([img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h, img_w, img_h], dtype=np.float32)
+        resize_scale = np.array(self.resize_scale*5, dtype=np.float32)
+        landms = landms * scale1 / resize_scale
 
         # ignore low scores
         inds = np.where(scores > self.config["conf_threshold"])[0]
@@ -152,65 +146,41 @@ class RetinaFace(BaseFaceDetector):
         for image in images:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             img = np.float32(image)
-            target_size = self.config["image_size"]
-            max_size = 2150
-            im_shape = img.shape
-            im_size_min = np.min(im_shape[:2])
-            im_size_max = np.max(im_shape[:2])
-            resize = float(target_size) / float(im_size_min)
 
-            # prevent bigger axis from being more than max_size:
-            if np.round(resize * im_size_max) > max_size:
-                resize = float(max_size) / float(im_size_max)
-            if self.config.get("origin_size", False):
-                resize = 1
 
-            self.resize_scale = resize
-            if resize != 1:
-                img = cv2.resize(image, None, None, fx=resize, fy=resize, interpolation=cv2.INTER_LINEAR)
+            img = cv2.resize(image, (self.config["image_size"], self.config["image_size"]))
 
             img = img.astype(np.float32)
             img -= np.asarray((104, 117, 123), dtype=np.float32)
             imgs.append(img)
         return imgs
 
-    def _predict_raw_batch(self, images: List[np.ndarray]) -> Tuple[Tensor, Tensor, Tensor]:
-        imgs = []
-        for image in images:
-            img = image.transpose((2, 0, 1))
-            imgs.append(torch.from_numpy(img))
 
-        imgs = torch.stack(imgs).to(self.device)
-        pred = self.model(imgs)
+    def _predict_raw_batch(self, images: List[np.ndarray]) -> Tuple[Tensor, Tensor, Tensor]:
+        if len(images) > self.batch_size:
+            raise NotImplementedError
+        imgs = np.zeros(shape=(self.batch_size, 3, self.config["image_size"], self.config["image_size"]), dtype=np.float32)
+        for i, image in enumerate(images):
+            img = image.transpose((2, 0, 1))
+            imgs[i] = img
+
+        self.model.requests[0].infer(inputs= {self.input_name: imgs})
+        pred = self.model.requests[0].outputs
+
+        pred = (pred[self.output_names[0]][:len(images)],pred[self.output_names[1]][:len(images)], pred[self.output_names[2]][:len(images)])
         return pred
 
-    def _postprocess_batch(self, raw_predictions: List[Tuple[Tensor, Tensor, Tensor]], preprocess_sizes) -> List[Tuple[np.ndarray, np.ndarray]]:
+    def _postprocess_batch(self, raw_predictions: List[Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> List[Tuple[np.ndarray, np.ndarray]]:
         dets_batch = []
         landms_batch = []
         locs, confs, landmss = raw_predictions
         # print(len(locs), len(confs), len(landmss))
-        for loc, conf, landms, preprocess_size in zip(locs, confs, landmss, preprocess_sizes):
-            # print(len(raw_prediction[0]), len(raw_prediction[1]), len(raw_prediction[2]))
-            # loc, conf, landms = raw_prediction
-            # img_h, img_w = self.model_input_shape[:2]
-            # scale = torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float)
-            # scale = scale.to(self.device)
+        for loc, conf, landms in zip(locs, confs, landmss):
+            boxes = decode(loc, self.prior_data, self.model_config["variance"])
 
-            priorbox = PriorBox(self.model_config, image_size=(preprocess_size[0], preprocess_size[1]))
-            priors = priorbox.forward()
-            priors = priors.to(self.device)
-            prior_data = priors.data
-            boxes = decode(loc.data.squeeze(0), prior_data, self.model_config["variance"])
-            # boxes = boxes * scale / self.resize_scale
-            boxes = boxes.cpu().numpy()
+            scores = conf[:, 1]
 
-            scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
-
-            landms = decode_landm(landms.data.squeeze(0), prior_data, self.model_config["variance"])
-            # scale1 = torch.tensor([preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0], preprocess_size[1], preprocess_size[0]], dtype=torch.float)
-            # scale1 = scale1.to(self.device)
-            # landms = landms * scale1 / self.resize_scale
-            landms = landms.cpu().numpy()
+            landms = decode_landm(landms, self.prior_data, self.model_config["variance"])
 
             # ignore low scores
             inds = np.where(scores > self.config["conf_threshold"])[0]
@@ -237,34 +207,6 @@ class RetinaFace(BaseFaceDetector):
 
         return dets_batch, landms_batch
 
-    # def predict_batch(self, images: List[np.ndarray]) -> List[Tuple[np.ndarray, np.ndarray]]:
-    #     images = self._preprocess_batch(images)
-    #     self.model_input_shape = images[0].shape
-    #     raw_preds = self._predict_raw_batch(images)
-    #     bboxes_batch, landms_batch = self._postprocess_batch(raw_preds)
-
-    #     # print(len(bboxes_batch), len(landms_batch))
-
-    #     landmarks_batch = []
-    #     for bboxes, landms in zip(bboxes_batch, landms_batch):
-    #         converted_landmarks = []
-    #         # convert to our landmark format (2,5)
-    #         for landmarks_set in landms:
-    #             x_landmarks = []
-    #             y_landmarks = []
-    #             for i, lm in enumerate(landmarks_set):
-    #                 if i % 2 == 0:
-    #                     x_landmarks.append(lm)
-    #                 else:
-    #                     y_landmarks.append(lm)
-    #             converted_landmarks.append(x_landmarks + y_landmarks)
-
-    #         landmarks_batch.append(np.array(converted_landmarks))
-
-    #     return bboxes_batch, landmarks_batch
-
-
-
     def predict_batch(self, images: List[np.ndarray]) -> List[Tuple[np.ndarray, np.ndarray]]:
         origin_sizes = []
         for image in images:
@@ -275,9 +217,8 @@ class RetinaFace(BaseFaceDetector):
         for image in images:
             preprocess_sizes.append(image.shape[:2])
 
-        # self.model_input_shape = images[0].shape
         raw_preds = self._predict_raw_batch(images)
-        bboxes_batch, landms_batch = self._postprocess_batch(raw_preds, preprocess_sizes)
+        bboxes_batch, landms_batch = self._postprocess_batch(raw_preds)
 
         unscale_bboxes_batch = []
         unscale_landms_batch = []

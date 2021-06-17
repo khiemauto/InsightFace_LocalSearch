@@ -1,0 +1,24 @@
+res50:
+  name: Resnet50
+  weights_path: weights/res50
+  input_name: "input.1"
+  output_names:
+    - "762"
+    - "837"
+    - "836"
+  min_sizes: [[16, 32], [64, 128], [256, 512]]
+  steps: [8, 16, 32]
+  variance: [0.1, 0.2]
+  clip: False
+mnet1:
+  name: mobilenet0.25
+  weights_path: weights/mnet1
+  input_name: "input.1"
+  output_names:
+    - "515"
+    - "590"
+    - "589"
+  min_sizes: [[16, 32], [64, 128], [256, 512]]
+  steps: [8, 16, 32]
+  variance: [0.1, 0.2]
+  clip: False

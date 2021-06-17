@@ -1,35 +1,31 @@
-detector:
-  image_size: 336         # 224
-  nms_threshold: 0.5
-  conf_threshold: 0.8
-  device: cuda             # cpu, cuda
-  architecture: res50     # res50 (ResNet 50), mnet1 (mobilenet1)
-embedder:
-  image_size: 112
+detector:                           # retina face detector
+  image_size: 336                   # image size input to detector. Default=224
+  nms_threshold: 0.5                # nms
+  conf_threshold: 0.8               # confidence
+  minface: 50                       # min face size. Default=50
+  device: cpu                       # cpu, cuda
+  architecture: mnet1               # res50 (ResNet 50), mnet1 (mobilenet1)
+  batch_size: 2                     # for only openvino
+embedder:                           # face image to 512D
+  image_size: 112                   # input size of emmbeder 
   descriptor_size: &descriptor_size 512
-  device: cuda             # cpu, cuda
-  architecture: iresnet34 # iresnet100, iresnet50, iresnet34
-attributes:
-  architecture: res18     # res18, mbnet2
-  device: cuda             # cpu, cuda
+  device: cpu                       # cpu, cuda
+  architecture: iresnet34           # iresnet100, iresnet50, iresnet34
+  batch_size: 10                    # for only openvino
+attributes:                         # face attributes detection
+  architecture: yolov5              # yolov5
+  device: cpu                       # cpu, cuda
   decision_threshold: 0.5
-database:
-  descriptor_size: *descriptor_size
-tracking:
-  device: cuda         # cpu, cuda
-  iou-thres: 0.5      # IOU threshold for object to be classified as detected. default=0.5
-  conf-thres: 0.5     # Confidence threshold for detection to be classified as object. default=0.5
-  nms-thres: 0.4      # IOU threshold for performing non-max supression. default=0.4
-  min-box-area: 200   # Filter out boxes smaller than this area from detections. default=200
-  track-buffer: 30    # Size of the tracking buffer. default=30
-evaluter:
-  qi: 1345.33325
-  b: 0.52109685
-  di: 0.00023316
-  illumination_threshold: 0.3
-  blur_threshold: 0.85
-  ratio0_min: 0.8
-  ratio0_max: 1.1
-  ratio1_max: 0.15
-  ratio2_min: 0.35
-  ratio2_max: 0.75
+database:                         # faiss database
+  descriptor_size: *descriptor_size # database descriptor size
+tracking:                         # Join Detection and OpenCV and Embedding tracking
+  threshsimilarityinstant: 0.6      # Feature similarity matching between previous frame with current frame
+  threshiou: 0.2                    # IOU between opencv tracking with detection
+  threshsimilarityiou: 0.2          # Feature similarity when using IOU opencv tracking-detection
+  # device: cuda                      # cpu, cuda
+evaluter:                           # Face quality evaluter
+  ratio0_min: 0.8                   # min of left_eye_to_right_eye/middle_eye_to_middle_mouth distance
+  ratio0_max: 1.1                   # max of left_eye_to_right_eye/middle_eye_to_middle_mouth distance
+  ratio1_max: 0.15                  # max of nose_to_line_middle_eye_middle_mouth/middle_eye_to_middle_mouth distance
+  ratio2_min: 0.35                  # min of evalution nose_to_middle_eye/middle_eye_to_middle_mouth distance
+  ratio2_max: 0.75                  # max of evalution nose_to_middle_eye/middle_eye_to_middle_mouth distance

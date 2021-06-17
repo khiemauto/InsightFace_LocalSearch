@@ -3,5 +3,5 @@ yolov5:
   img_size: 224                                     #inference size (pixels)
   conf_thres: 0.25        #object confidence threshold
   iou_thres: 0.45         #IOU threshold for NMS
- agnostic_nms: False      #class-agnostic NMS
+  agnostic_nms: False      #class-agnostic NMS
   augment: False           #augmented inference

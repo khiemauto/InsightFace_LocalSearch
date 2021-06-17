@@ -151,9 +151,10 @@ class FaceAttributes():
         # Apply NMS
         preds = non_max_suppression(pred, self.model_config["conf_thres"], self.model_config["iou_thres"], agnostic=self.model_config["agnostic_nms"])
         attrs_batch = []
+        # print(preds)
         for pred in preds:
-            attrs = []
+            attrs = set()
             for attr in pred:
-                attrs.append(self.names[int(attr[5])])
-            attrs_batch.append(attrs)
+                attrs.add(self.names[int(attr[5])])
+            attrs_batch.append(sorted(attrs))
         return attrs_batch

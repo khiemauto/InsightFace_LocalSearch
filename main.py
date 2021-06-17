@@ -117,7 +117,7 @@ def detect_thread_fun():
         del rgbs
 
         for bboxes, landmarks, (deviceId, rgb, frameID) in zip(bboxes_batch, landmarks_batch, detect_inputs):
-            main_logger.debug(f"Camera {deviceId} detected {len(bboxes)} faces with bboxes {bboxes}, landmarks {landmarks}")
+            # main_logger.debug(f"Camera {deviceId} detected {len(bboxes)} faces with bboxes {bboxes}, landmarks {landmarks}")
             #Keep for recogn
             bbox_keeps = []
             landmark_keeps = []

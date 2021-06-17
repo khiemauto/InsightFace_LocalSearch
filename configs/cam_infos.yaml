@@ -1,25 +1,9 @@
 CamInfos:
   - DeviceID: 1
-    LinkRTSP: 1
-    illumination_threshold: 0.4
+    LinkRTSP: rtsp://admin:123456a@@10.38.79.209
+    illumination_threshold: 0.3
     blur_threshold: 0.8  #0.70
-  # - DeviceID: 2
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.248
-  # - DeviceID: 3
-  #   LinkRTSP: /mnt/LINUXDATA/Source/data/video/chamcong_crop.mp4
-  # - DeviceID: 4
-  #   LinkRTSP: /mnt/LINUXDATA/Source/data/video/10.38.61.248.mp4
-  # - DeviceID: 5
-  #   LinkRTSP: /mnt/LINUXDATA/Source/data/video/10.38.79.209.mp4
-  #   illumination_threshold: 0.5
-  #   blur_threshold: 0.85  #0.70
-  # - DeviceID: 6
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
-  # - DeviceID: 7
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
-  # - DeviceID: 8
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
-  # - DeviceID: 9
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
-  # - DeviceID: 10
-  #   LinkRTSP: rtsp://admin:123456a@@10.38.61.114
+  - DeviceID: 2
+    LinkRTSP: rtsp://admin:lpbadmin432@@10.38.79.211/profile2/media.smp
+    illumination_threshold: 0.3
+    blur_threshold: 0.8  #0.70

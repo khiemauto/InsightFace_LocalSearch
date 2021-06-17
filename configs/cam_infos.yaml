@@ -1,6 +1,6 @@
 CamInfos:
   - DeviceID: 1
-    LinkRTSP: 1
+    LinkRTSP: 0
     illumination_threshold: 0.4
     blur_threshold: 0.8  #0.70
   # - DeviceID: 2

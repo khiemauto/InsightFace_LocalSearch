@@ -228,6 +228,7 @@ def recogn_thread_fun():
         if len(faceAligns) > 0:
             preTime = time.time()
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
+            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
             del faceAligns
 
             # print("Description Time:", time.time() - preTime)
@@ -246,9 +247,12 @@ def recogn_thread_fun():
                     faceInfo.append(descriptor)
                     faceInfo.append(user_name)
                     faceInfo.append(distance[0])
+
+            for faceInfo, attribute in zip(faceInfos, attributes):
+                faceInfo.append(attribute)
         
-        for deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer, descriptor, user_name, score in faceInfos:
-            faceFrameInfos[(iBuffer, deviceId)][0].append([bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score])
+        for deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer, descriptor, user_name, score, attribute in faceInfos:
+            faceFrameInfos[(iBuffer, deviceId)][0].append([bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, attribute])
 
         # preTime = time.time()
         share_param.tracking_multiCam.update(faceFrameInfos)
@@ -259,10 +263,9 @@ def recogn_thread_fun():
             rgb = faceFrameInfos[(iBuffer, deviceId)][1]
             rgbDraw = rgb.copy()
 
-            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid, overlap in faceInfos:
+            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, attribute, trackid, overlap in faceInfos:
                 faceCrop = rgb[int(bbox[1]):int(bbox[3]),
                                     int(bbox[0]):int(bbox[2])]
-                names = share_param.facerec_system.sdk.attributes.detect(faceAlign)
 
                 faceSize = float((bbox[3]-bbox[1])*(bbox[2]-bbox[0]))
                 isillumination, threshillumination = share_param.evaluter_cams[deviceID].check_illumination(faceCrop)
@@ -278,9 +281,9 @@ def recogn_thread_fun():
                 if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                    if "hand" not in attribute and "mask" not in attribute and isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
@@ -295,9 +298,9 @@ def recogn_thread_fun():
                     trackidtoname[(deviceId,trackid)] = user_name
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names, trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                    if "hand" not in attribute and "mask" not in attribute and isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
@@ -311,9 +314,9 @@ def recogn_thread_fun():
                     new_user_name = datetime.now().strftime("%H%M%S%f")
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
-                    if isNotBlur and isStraightFace and isillumination and not overlap:
+                    if "hand" not in attribute and "mask" not in attribute and isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
                         user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False]

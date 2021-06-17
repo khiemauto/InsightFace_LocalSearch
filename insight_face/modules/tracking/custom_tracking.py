@@ -274,7 +274,7 @@ class TrackingMultiCam():
             detectbox_descriptors = []
             descriptors = []
 
-            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score in faceInfos:
+            for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, attribute in faceInfos:
                 x_l, y_t, x_r, y_b, conf = bbox 
                 boxx, boxy, boxw, boxh = x_l, y_t, x_r-x_l, y_b-y_t
 

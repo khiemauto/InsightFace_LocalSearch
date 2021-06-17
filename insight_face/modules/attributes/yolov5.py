@@ -132,3 +132,28 @@ class FaceAttributes():
         for name in pred:
             names.append(self.names[int(name[5])])
         return names
+
+    def detect_batch(self, images: List[np.ndarray]):
+        imgs = []
+        for image in images:
+            face_tensor = self._preprocess(image)
+            img = torch.from_numpy(face_tensor).float()
+            img /= 255.0
+            imgs.append(img)
+
+        imgs = torch.stack(imgs).to(self.device)
+
+        # Inference
+        preTime = time.time()
+        pred = self.model(imgs, augment=self.model_config["augment"])[0]
+        print(f'Attributes: {time.time() - preTime:.3f}')
+
+        # Apply NMS
+        preds = non_max_suppression(pred, self.model_config["conf_thres"], self.model_config["iou_thres"], agnostic=self.model_config["agnostic_nms"])
+        attrs_batch = []
+        for pred in preds:
+            attrs = []
+            for attr in pred:
+                attrs.append(self.names[int(attr[5])])
+            attrs_batch.append(attrs)
+        return attrs_batch

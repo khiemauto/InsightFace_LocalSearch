@@ -134,7 +134,7 @@ def detect_thread_fun():
                 faceW = bbox[2] - bbox[0]
                 faceH = bbox[3] - bbox[1]
 
-                print(f"faceW {faceW}, faceH {faceH}")
+                # print(f"faceW {faceW}, faceH {faceH}")
 
                 if faceW < share_param.sdk_config["detector"]["minface"] or faceH < share_param.sdk_config["detector"]["minface"]:
                     continue
@@ -260,21 +260,25 @@ def recogn_thread_fun():
             rgbDraw = rgb.copy()
 
             for bbox, landmark, faceAlign, faceCropExpand, descriptor, user_name, score, trackid, overlap in faceInfos:
-
                 faceCrop = rgb[int(bbox[1]):int(bbox[3]),
                                     int(bbox[0]):int(bbox[2])]
+                names = share_param.facerec_system.sdk.attributes.detect(faceAlign)
 
                 faceSize = float((bbox[3]-bbox[1])*(bbox[2]-bbox[0]))
                 isillumination, threshillumination = share_param.evaluter_cams[deviceID].check_illumination(faceCrop)
                 isNotBlur, threshnotblur = share_param.evaluter_cams[deviceID].check_not_blur(faceCrop)
                 isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(rgb, landmark)
 
+                # if isNotBlur:
+                #     new_user_name = datetime.now().strftime("%H%M%S%f") + ".jpg"
+                #     photo_path = os.path.join("dataset/traindata", new_user_name)
+                #     cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
                 # spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
                 if (deviceId,trackid) in trackidtoname:
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
@@ -291,7 +295,7 @@ def recogn_thread_fun():
                     trackidtoname[(deviceId,trackid)] = user_name
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names, trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
@@ -307,7 +311,7 @@ def recogn_thread_fun():
                     new_user_name = datetime.now().strftime("%H%M%S%f")
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
-                    cv2.putText(rgbDraw, "{} {} {:03.3f} {:03.3f} {:03.3f} {}".format(trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+                    cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(names,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
                     if isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name

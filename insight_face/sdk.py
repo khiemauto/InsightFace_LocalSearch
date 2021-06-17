@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .modules.detection.retinaface.model_class import RetinaFace
 from .modules.recognition.insightface.insightface import InsightFaceEmbedder
-# from .modules.face_attributes.attr_classifier_v1.attr_classifier_v1 import AttributeClassifierV1
+from .modules.attributes.yolov5 import FaceAttributes
 from .modules.alignment.align_faces import align_and_crop_face
 from .modules.database.faiss.faiss_database import FaissFaceStorage
 from .modules.evalution.custom_evaluter import CustomEvaluter
@@ -26,7 +26,7 @@ class FaceRecognitionSDK:
         logger.info("Start SDK initialization.")
         self.detector = RetinaFace(config["detector"])
         self.embedder = InsightFaceEmbedder(config["embedder"])
-        # self.attr_classifier = AttributeClassifierV1(config["attributes"])
+        self.attributes = FaceAttributes(config["attributes"])
         self.database = FaissFaceStorage(config["database"])
         # self.evaluter = CustomEvaluter(config["evaluter"])
         logger.info("Finish SDK initialization")

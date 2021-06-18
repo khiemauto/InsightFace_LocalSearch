@@ -397,7 +397,7 @@ if __name__ == '__main__':
     main_logger.info("Init TrackingMultiCam")
     share_param.tracking_multiCam = TrackingMultiCam(share_param.sdk_config["tracking"])
     main_logger.info("Init RedisClient")
-    share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
+    share_param.redisClient = redis.StrictRedis(host=share_param.dev_config["REDIS"]["host"], port=share_param.dev_config["REDIS"]["port"], db=0)
 
     if share_param.dev_config["DATA"]["reload_database"]:
         share_param.facerec_system.create_database_from_folders(share_param.dev_config["DATA"]["photo_path"])

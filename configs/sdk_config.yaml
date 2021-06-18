@@ -4,7 +4,7 @@ detector:                           # retina face detector
   conf_threshold: 0.8               # confidence
   minface: 50                       # min face size. Default=50
   device: cuda                       # cpu, cuda
-  architecture: mnet1               # res50 (ResNet 50), mnet1 (mobilenet1)
+  architecture: res50               # res50 (ResNet 50), mnet1 (mobilenet1)
   batch_size: 2                     # for only openvino
 embedder:                           # face image to 512D
   image_size: 112                   # input size of emmbeder 
@@ -26,6 +26,6 @@ tracking:                         # Join Detection and OpenCV and Embedding trac
 evaluter:                           # Face quality evaluter
   ratio0_min: 0.7                   # min of left_eye_to_right_eye/middle_eye_to_middle_mouth distance
   ratio0_max: 1.2                   # max of left_eye_to_right_eye/middle_eye_to_middle_mouth distance
-  ratio1_max: 0.2                  # max of nose_to_line_middle_eye_middle_mouth/middle_eye_to_middle_mouth distance
+  ratio1_max: 0.15                  # max of nose_to_line_middle_eye_middle_mouth/middle_eye_to_middle_mouth distance
   ratio2_min: 0.3                  # min of evalution nose_to_middle_eye/middle_eye_to_middle_mouth distance
-  ratio2_max: 0.8                  # max of evalution nose_to_middle_eye/middle_eye_to_middle_mouth distance
+  ratio2_max: 0.75                  # max of evalution nose_to_middle_eye/middle_eye_to_middle_mouth distance

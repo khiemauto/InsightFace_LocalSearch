@@ -22,7 +22,7 @@ from .utils.general import check_img_size, check_requirements, check_imshow, non
 from ...utils.load_utils import get_file_from_url
 
 model_urls = {
-    "yolov5": "https://bitbucket.org/khiembka1992/data/raw/6d9cda255748fd5e4c3797f586c8c3f4530e8408/InsightFace/yolov5_face_attrs.pt"
+    "yolov5s": "https://bitbucket.org/khiembka1992/data/raw/6d9cda255748fd5e4c3797f586c8c3f4530e8408/InsightFace/yolov5_face_attrs.pt"
 }
 
 class FaceAttributes():

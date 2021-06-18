@@ -228,7 +228,9 @@ def recogn_thread_fun():
         if len(faceAligns) > 0:
             preTime = time.time()
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
+            # preTime = time.time()
             attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
+            # print("Attributes of",len(faceAligns), time.time() - preTime)
             del faceAligns
 
             # print("Description Time:", time.time() - preTime)

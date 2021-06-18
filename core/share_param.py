@@ -13,17 +13,22 @@ CAM_QUEUE_SIZE = 5
 DETECT_QUEUE_SIZE = 5
 RECOGN_QUEUE_SIZE = 10
 IMSHOW_QUEUE_SIZE = 5
+REDIS_QUEUE_SIZE = 10
 
 bRunning = True
 bExit = False
 cam_infos = {}
 cam_threads = {}
 detect_thread = None
+recogn_thread = None
 imshow_thread = None
+redis_thread = None
+
 cam_queue = None
 detect_queue = None
 recogn_queue = None
 imshow_queue = None
+redis_queue = None
 
 #Hyperbol blur
 qi = 1345.33325

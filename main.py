@@ -194,7 +194,7 @@ def recogn_thread_fun():
                 equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
 
                 cv2.imwrite(photo_path,  equ)
-                share_param.redisClient.lpush("image",support.opencv_to_base64(equ))
+                support.add_redis_queue(equ)
                 
                 user_qualityscore_face_firsttime[user][4] = None
                 user_qualityscore_face_firsttime[user][5] = True
@@ -374,6 +374,16 @@ def imshow_thread_fun():
     # writer.release()
     cv2.destroyAllWindows()
 
+def redis_thread_fun():
+    while not share_param.bExit:
+        if not share_param.bRunning:
+            time.sleep(1)
+        else:
+            time.sleep(0.01)
+        while not share_param.redis_queue.empty():
+            image = share_param.redis_queue.get()
+            share_param.redisClient.lpush("image",support.opencv_to_base64(image))
+
 if __name__ == '__main__':
     main_logger.info("Starting application")
     main_logger.info("Reading configs")
@@ -398,6 +408,7 @@ if __name__ == '__main__':
     share_param.detect_queue = queue.Queue(maxsize=share_param.DETECT_QUEUE_SIZE*share_param.batch_size+1)
     share_param.recogn_queue = queue.Queue(maxsize=share_param.RECOGN_QUEUE_SIZE*share_param.batch_size+1)
     share_param.imshow_queue = queue.Queue(maxsize=share_param.IMSHOW_QUEUE_SIZE*share_param.batch_size+1)
+    share_param.redis_queue = queue.Queue(maxsize=share_param.REDIS_QUEUE_SIZE*share_param.batch_size+1)
 
     for cam_info in share_param.cam_infos["CamInfos"]:
         deviceID = cam_info["DeviceID"]
@@ -413,6 +424,7 @@ if __name__ == '__main__':
     share_param.detect_thread = threading.Thread(target=detect_thread_fun, daemon=True, args=())
     share_param.recogn_thread = threading.Thread(target=recogn_thread_fun, daemon=True, args=())
     share_param.imshow_thread = threading.Thread(target=imshow_thread_fun, daemon=True, args=())
+    share_param.redis_thread = threading.Thread(target=redis_thread_fun, daemon=True, args=())
 
     for deviceID in share_param.cam_threads:
         share_param.cam_threads[deviceID].start()
@@ -423,6 +435,10 @@ if __name__ == '__main__':
     main_logger.info(f"recogn_thread started")
     share_param.imshow_thread.start()
     main_logger.info(f"imshow_thread started")
+    share_param.redis_thread.start()
+    main_logger.info(f"redis_thread started")
+    share_param.redis_thread.join()
+    main_logger.info(f"redis_thread quited")
     share_param.imshow_thread.join()
     main_logger.info(f"imshow_thread quited")
     share_param.recogn_thread.join()

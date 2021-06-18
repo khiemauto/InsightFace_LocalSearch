@@ -57,7 +57,7 @@ def add_detect_queue(data):
 def opencv_to_base64(image: np.ndarray) -> str:
     if image is None or image.size == 0:
         raise ValueError("image empty!")
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     retval, buffer = cv2.imencode(".jpg", image)
     bas64img = base64.b64encode(buffer)
     return bas64img

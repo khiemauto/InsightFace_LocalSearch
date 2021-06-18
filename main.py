@@ -177,14 +177,25 @@ def recogn_thread_fun():
         totalTime = time.time()
         time.sleep(0.001)
 
-        for user in user_qualityscore_face_firsttime:
+        for user in list(user_qualityscore_face_firsttime):
+            if time.time() - user_qualityscore_face_firsttime[user][3] > 180.0:
+                share_param.facerec_system.del_photo_by_user_name(user)
+                del user_qualityscore_face_firsttime[user]
+                trackidtoname = { k:v for k, v in trackidtoname.items() if v!=user }
+                continue
             if user_qualityscore_face_firsttime[user][5]:
                 continue
             if time.time() - user_qualityscore_face_firsttime[user][3] > 1.0:
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
-                cv2.imwrite(photo_path,  cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR))
-                share_param.redisClient.lpush("image",support.opencv_to_base64(user_qualityscore_face_firsttime[user][4]))
+                # equalize
+                YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
+                YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
+                equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+
+                cv2.imwrite(photo_path,  equ)
+                share_param.redisClient.lpush("image",support.opencv_to_base64(equ))
+                
                 user_qualityscore_face_firsttime[user][4] = None
                 user_qualityscore_face_firsttime[user][5] = True
                 main_logger.info(f"Push face {user} to redis")
@@ -228,7 +239,9 @@ def recogn_thread_fun():
         if len(faceAligns) > 0:
             preTime = time.time()
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
+            # preTime = time.time()
             attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
+            # print("Attributes of",len(faceAligns), time.time() - preTime)
             del faceAligns
 
             # print("Description Time:", time.time() - preTime)

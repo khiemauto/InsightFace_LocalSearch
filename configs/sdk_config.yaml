@@ -13,7 +13,7 @@ embedder:                           # face image to 512D
   architecture: iresnet34           # iresnet100, iresnet50, iresnet34
   batch_size: 10                    # for only openvino
 attributes:                         # face attributes detection
-  architecture: yolov5              # yolov5
+  architecture: yolov5s              # yolov5s, yolov5m, yolov5l, yolov5x
   device: cuda                       # cpu, cuda
   decision_threshold: 0.5
 database:                         # faiss database

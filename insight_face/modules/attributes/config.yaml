@@ -1,4 +1,4 @@
-yolov5:
+yolov5s:
   weights: weights/yolov5_face_attrs.pt            #model.pt path(s)
   img_size: 224                                     #inference size (pixels)
   conf_thres: 0.25        #object confidence threshold

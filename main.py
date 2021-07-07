@@ -210,6 +210,7 @@ def recogn_thread_fun():
         
         faceInfos = []      #FaceInformation of all frame in batch
         faceAligns = []     #Face Align of all frame in batch
+        faceCropExpands = []     #Face crop of all frame in batch
         faceFrameInfos = {}     #Dict contain face infor and rgb of each frame in batch
 
         preTime = time.time()
@@ -234,15 +235,17 @@ def recogn_thread_fun():
                 faceAlign = share_param.facerec_system.sdk.align_face(rgb, landmark)
                 faceInfos.append([deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer])
                 faceAligns.append(faceAlign)
+                faceCropExpands.append(faceCropExpand)
 
         # print("Align Time:", time.time() - preTime)
         if len(faceAligns) > 0:
             preTime = time.time()
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
             # preTime = time.time()
-            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
+            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceCropExpands)
             # print("Attributes of",len(faceAligns), time.time() - preTime)
             del faceAligns
+            del faceCropExpands
 
             # print("Description Time:", time.time() - preTime)
             preTime = time.time()

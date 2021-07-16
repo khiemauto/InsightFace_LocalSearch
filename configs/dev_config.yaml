@@ -9,3 +9,5 @@ DEV:
 REDIS:
   host: 127.0.0.1
   port: 6379
+SOAP:
+  url: http://10.36.209.66:6688/esmac/services/EsmacService?wsdl

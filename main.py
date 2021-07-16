@@ -14,6 +14,7 @@ from insight_face.utils.database import FaceRecognitionSystem
 from insight_face.modules.evalution.custom_evaluter import CustomEvaluter
 import csv
 import logging
+import requests
 
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 handler = logging.FileHandler("main.log")        
@@ -385,7 +386,11 @@ def redis_thread_fun():
             time.sleep(0.01)
         while not share_param.redis_queue.empty():
             image = share_param.redis_queue.get()
-            share_param.redisClient.lpush("image",support.opencv_to_base64(image))
+            # share_param.redisClient.lpush("image",support.opencv_to_base64(image))
+            base64_img = support.opencv_to_base64(image)
+            soap_message = support.get_soap_message(base64_img)
+            x = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=60)
+            print(x)
 
 if __name__ == '__main__':
     main_logger.info("Starting application")
@@ -399,8 +404,8 @@ if __name__ == '__main__':
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")
     share_param.tracking_multiCam = TrackingMultiCam(share_param.sdk_config["tracking"])
-    main_logger.info("Init RedisClient")
-    share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
+    # main_logger.info("Init RedisClient")
+    # share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 
     if share_param.dev_config["DATA"]["reload_database"]:
         share_param.facerec_system.create_database_from_folders(share_param.dev_config["DATA"]["photo_path"])

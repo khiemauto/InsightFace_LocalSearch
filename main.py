@@ -16,6 +16,10 @@ import csv
 import logging
 import requests
 
+import xml.etree.ElementTree as ET
+import cx_Oracle
+import pyttsx3
+
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 handler = logging.FileHandler("main.log")        
 handler.setFormatter(formatter)
@@ -379,6 +383,17 @@ def imshow_thread_fun():
     cv2.destroyAllWindows()
 
 def redis_thread_fun():
+    namespaces = {
+                'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd'
+            }
+
+    connection = cx_Oracle.connect(user=share_param.dev_config["ORACLE"]["user"], password=share_param.dev_config["ORACLE"]["password"], 
+                                dsn=share_param.dev_config["ORACLE"]["dsn"])
+    cursor = connection.cursor()
+
+    engine = pyttsx3.init()
+    engine.setProperty('voice', 'vietnam')
+
     while not share_param.bExit:
         if not share_param.bRunning:
             time.sleep(1)
@@ -390,7 +405,43 @@ def redis_thread_fun():
             base64_img = support.opencv_to_base64(image)
             soap_message = support.get_soap_message(base64_img)
             x = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=60)
-            print(x)
+            
+            # define namespace mappings to use as shorthand below
+            dom = ET.fromstring(x.content)
+            fullNames = dom.findall(
+                './/ax233:fullName',
+                namespaces
+            )
+            # print(name.text)
+            name = ""
+            for fullName in fullNames:
+                print(fullName.text)
+                if fullName.text is not None or len(fullName.text) > 0:
+                    name = fullName.text
+            print("name", name)
+
+            if name=="" or name is None:
+                continue
+
+            engine.say(name)
+            engine.runAndWait()
+
+            imgPaths = dom.findall(
+                './/ax233:imgPath',
+                namespaces
+            )
+            # print(name.text)
+            request_id = ""
+            for imgPath in imgPaths:
+                print(imgPath.text)
+                request_id = os.path.splitext(os.path.basename(imgPath.text))[0]
+
+            statement = f'UPDATE SMART_QUEUE SET RECORD_STATUS = \'C\' WHERE REQUEST_ID = {request_id}'
+            cursor.execute(statement)
+            connection.commit()
+
+            for row in cursor.execute(f'SELECT RECORD_STATUS FROM SMART_QUEUE WHERE REQUEST_ID = {request_id}'):
+                print(row)
 
 if __name__ == '__main__':
     main_logger.info("Starting application")

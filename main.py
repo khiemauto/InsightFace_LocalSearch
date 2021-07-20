@@ -165,7 +165,7 @@ def recogn_thread_fun():
     totalTime = time.time()
     trackidtoname = {}      #{(deviceID,trackID): name}
 
-    user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed]}
+    user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime]}
 
     FPS = {}
 
@@ -181,7 +181,7 @@ def recogn_thread_fun():
         time.sleep(0.001)
 
         for user in list(user_qualityscore_face_firsttime):
-            if time.time() - user_qualityscore_face_firsttime[user][3] > 180.0:
+            if time.time() - user_qualityscore_face_firsttime[user][6] > 180.0:
                 share_param.facerec_system.del_photo_by_user_name(user)
                 del user_qualityscore_face_firsttime[user]
                 trackidtoname = { k:v for k, v in trackidtoname.items() if v!=user }
@@ -301,6 +301,11 @@ def recogn_thread_fun():
                 # spamwriter.writerow([float(bbox[3]-bbox[1])*(bbox[2]-bbox[0]), float(threshnotblur), float(threshillumination)])
                 
                 if (deviceId,trackid) in trackidtoname:
+                    if score > share_param.dev_config["DEV"]["face_reg_score"]:
+                        trackidtoname[(deviceId,trackid)] = user_name
+                        user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
+                        # print("1UpdateTime")
+
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
@@ -322,6 +327,9 @@ def recogn_thread_fun():
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
+                    # print("2UpdateTime")
+                    user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
+
                     if "hand" not in attribute and "mask" not in attribute and isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
@@ -341,7 +349,7 @@ def recogn_thread_fun():
                     if "hand" not in attribute and "mask" not in attribute and isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
-                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False]
+                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time()]
                         filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/firstphotos", filename)
                         cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
@@ -386,7 +394,8 @@ def imshow_thread_fun():
 def redis_thread_fun():
     namespaces = {
         'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd',
-        'ax214': 'http://entity.ewallet.lpb.com/xsd'
+        'ax214': 'http://entity.ewallet.lpb.com/xsd',
+        'ax216': "http://entity.showroom.ewallet.lpb.com/xsd"
     }
     namesays = {}
 
@@ -399,16 +408,22 @@ def redis_thread_fun():
             image = share_param.redis_queue.get()
             base64_img = support.opencv_to_base64(image)
             soap_message = support.get_soap_message(base64_img)
-            x = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=60)
-            
-            dom = ET.fromstring(x.content)
+            try:
+                response = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=10)
+            except requests.exceptions.ConnectTimeout as e:
+                main_logger.error("faceSearch time out!")
+                continue
+            except:
+                continue
+
+            dom = ET.fromstring(response.content)
             customerNames = dom.findall(
-                './/ax214:customerName',
+                './/ax216:fullName',
                 namespaces
             )
 
             scores = dom.findall(
-                './/ax214:score',
+                './/ax216:score',
                 namespaces
             )
             name_scores = []
@@ -421,7 +436,7 @@ def redis_thread_fun():
                     max_score = float(score.text)
                     max_name = name.text
 
-            # print("max_name", max_name, "max_score", max_score)
+            print("max_name", max_name, "max_score", max_score)
 
             if max_name is None or max_name == "" or max_score<0.75:
                 continue
@@ -435,6 +450,8 @@ def redis_thread_fun():
                     namesays[max_name] = time.time()
                     # print("say_name", max_name)
                     support.say_name(max_name)
+                else:
+                    namesays[max_name] = time.time()
 
 if __name__ == '__main__':
     main_logger.info("Starting application")

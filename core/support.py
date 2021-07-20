@@ -10,10 +10,39 @@ from io import BytesIO
 from pydub import AudioSegment
 from pydub.playback import play
     
-soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
+# soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
+#    <soapenv:Header/>
+#    <soapenv:Body>
+#       <esm:faceSearch>
+#          <!--Optional:-->
+#          <esm:request>
+#             <!--Optional:-->
+#             <xsd:header>
+#                <!--Optional:-->
+#                <xsd1:channelCode>M</xsd1:channelCode>
+#                <!--Optional:-->
+#                <xsd1:deviceId>khiemtv</xsd1:deviceId>
+#                <!--Optional:-->
+#                <xsd1:ip>127.0.0.1</xsd1:ip>
+#                <!--Optional:-->
+#                <xsd1:txnId>{txnId}</xsd1:txnId>
+#                <!--Optional:-->
+#                <xsd1:txnTime>{txnTime}</xsd1:txnTime>
+#                <!--Optional:-->
+#                <xsd1:userName>khiemtv</xsd1:userName>
+#             </xsd:header>
+#             <!--Optional:-->
+#             <xsd:imageFace>{base64}</xsd:imageFace>
+#          </esm:request>
+#       </esm:faceSearch>
+#    </soapenv:Body>
+# </soapenv:Envelope>'''
+
+
+soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.showroom.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
    <soapenv:Header/>
    <soapenv:Body>
-      <esm:faceSearch>
+      <esm:getSmartCustVip>
          <!--Optional:-->
          <esm:request>
             <!--Optional:-->
@@ -21,7 +50,7 @@ soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
                <!--Optional:-->
                <xsd1:channelCode>M</xsd1:channelCode>
                <!--Optional:-->
-               <xsd1:deviceId>khiemtv</xsd1:deviceId>
+               <xsd1:deviceId>hungdv</xsd1:deviceId>
                <!--Optional:-->
                <xsd1:ip>127.0.0.1</xsd1:ip>
                <!--Optional:-->
@@ -29,12 +58,12 @@ soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
                <!--Optional:-->
                <xsd1:txnTime>{txnTime}</xsd1:txnTime>
                <!--Optional:-->
-               <xsd1:userName>khiemtv</xsd1:userName>
+               <xsd1:userName>hungdv</xsd1:userName>
             </xsd:header>
-            <!--Optional:-->
-            <xsd:imageFace>{base64}</xsd:imageFace>
+            <!--Zero or more repetitions:-->
+            <xsd:imgBase64>{base64}</xsd:imgBase64>
          </esm:request>
-      </esm:faceSearch>
+      </esm:getSmartCustVip>
    </soapenv:Body>
 </soapenv:Envelope>'''
 
@@ -107,6 +136,7 @@ def get_soap_message(base64_img: str) -> str:
     return soap_message
 
 def say_name(name: str):
+    print("say_name", name)
     tts = gTTS(text=f'Xin chào, {name}', lang='vi')
     fp = BytesIO()
     tts.write_to_fp(fp)

@@ -7,5 +7,11 @@ DEV:
   print: True
   face_reg_score: 0.7
 REDIS:
-  host: localhost
+  host: 127.0.0.1
   port: 6379
+SOAP:
+  url: http://10.36.209.66:6688/esmac/services/EsmacService?wsdl
+ORACLE:
+  user: ESMAC_VV_TE
+  password: esmac_vv_te
+  dsn: 10.36.126.42:1521/VIVIET

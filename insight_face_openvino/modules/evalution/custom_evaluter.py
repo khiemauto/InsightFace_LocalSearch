@@ -68,7 +68,7 @@ class CustomEvaluter:
         ratio1 = disn2line_memo/disme2mm
         ratio2 = disn2me/disme2mm
 
-        print("Ratio:", ratio0, ratio1, ratio2)
+        # print("Ratio:", ratio0, ratio1, ratio2)
 
         if ratio0 > self.ratio0_min and ratio0 < self.ratio0_max and ratio1 < self.ratio1_max and ratio2 > self.ratio2_min and ratio2 < self.ratio2_max:
             return True

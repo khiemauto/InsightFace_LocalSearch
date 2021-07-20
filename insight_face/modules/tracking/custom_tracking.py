@@ -46,7 +46,7 @@ class Tracking():
                     maxiou = iou
                     trackidmaxiou = trackid
                     
-            print(maxiou)
+            # print(maxiou)
             if maxiou<self.threshiou:
                 continue
 
@@ -99,7 +99,7 @@ class Tracking():
             self.trackers[trackid][UPDATED_INDEX] = False
             for detectboxid, (detectbox, descriptor) in enumerate(detectbox_descriptors):
                 similarity = share_param.facerec_system.sdk.get_similarity(track_descriptor, descriptor)
-                print("similarity:", similarity)
+                # print("similarity:", similarity)
                 if similarity > self.threshsimilarityinstant:
                     self.trackers[trackid][TRACKER_INDEX] = cv2.legacy.TrackerKCF_create()
                     self.trackers[trackid][TRACKER_INDEX].init(frame, detectbox)
@@ -141,7 +141,7 @@ class Tracking():
                 iou = self.bb_intersection_over_union(xyxydetectbox, xyxytrackbox)
                 track_descriptor = self.trackers[opencv_trackid][DESCRIPTOR_INDEX]
                 similarity = share_param.facerec_system.sdk.get_similarity(track_descriptor, descriptor)
-                print("iou", iou, "similarity", similarity)
+                # print("iou", iou, "similarity", similarity)
                 # if iou > maxiou:
                 if iou > maxiou and similarity>self.threshsimilarityiou:
                     maxiou = iou

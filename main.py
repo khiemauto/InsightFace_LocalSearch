@@ -14,13 +14,18 @@ from insight_face.utils.database import FaceRecognitionSystem
 from insight_face.modules.evalution.custom_evaluter import CustomEvaluter
 import csv
 import logging
+import requests
+
+import xml.etree.ElementTree as ET
+import cx_Oracle
+import pyttsx3
 
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 handler = logging.FileHandler("main.log")        
 handler.setFormatter(formatter)
 
 main_logger = logging.getLogger(__name__)
-main_logger.setLevel(logging.DEBUG)
+# main_logger.setLevel(logging.DEBUG)
 main_logger.addHandler(handler)
 
 def cam_thread_fun(deviceID: int, camURL: str):
@@ -212,6 +217,7 @@ def recogn_thread_fun():
         
         faceInfos = []      #FaceInformation of all frame in batch
         faceAligns = []     #Face Align of all frame in batch
+        faceCropExpands = []     #Face crop of all frame in batch
         faceFrameInfos = {}     #Dict contain face infor and rgb of each frame in batch
 
         preTime = time.time()
@@ -236,15 +242,17 @@ def recogn_thread_fun():
                 faceAlign = share_param.facerec_system.sdk.align_face(rgb, landmark)
                 faceInfos.append([deviceId, bbox, landmark, faceAlign, faceCropExpand, iBuffer])
                 faceAligns.append(faceAlign)
+                faceCropExpands.append(faceCropExpand)
 
         # print("Align Time:", time.time() - preTime)
         if len(faceAligns) > 0:
             preTime = time.time()
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
             # preTime = time.time()
-            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
+            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceCropExpands)
             # print("Attributes of",len(faceAligns), time.time() - preTime)
             del faceAligns
+            del faceCropExpands
 
             # print("Description Time:", time.time() - preTime)
             preTime = time.time()
@@ -377,6 +385,20 @@ def imshow_thread_fun():
     cv2.destroyAllWindows()
 
 def redis_thread_fun():
+    namespaces = {
+        'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd',
+        'ax214': 'http://entity.ewallet.lpb.com/xsd'
+    }
+
+    connection = cx_Oracle.connect(user=share_param.dev_config["ORACLE"]["user"], password=share_param.dev_config["ORACLE"]["password"], 
+                                dsn=share_param.dev_config["ORACLE"]["dsn"])
+    cursor = connection.cursor()
+
+    engine = pyttsx3.init()
+    engine.setProperty('voice', 'vietnam')
+
+    namesays = {}
+
     while not share_param.bExit:
         if not share_param.bRunning:
             time.sleep(1)
@@ -384,7 +406,69 @@ def redis_thread_fun():
             time.sleep(0.01)
         while not share_param.redis_queue.empty():
             image = share_param.redis_queue.get()
-            share_param.redisClient.lpush("image",support.opencv_to_base64(image))
+            # share_param.redisClient.lpush("image",support.opencv_to_base64(image))
+            base64_img = support.opencv_to_base64(image)
+            soap_message = support.get_soap_message(base64_img)
+            # print(soap_message)
+            x = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=60)
+            
+            # print(x.text)
+            # define namespace mappings to use as shorthand below
+            dom = ET.fromstring(x.content)
+            customerNames = dom.findall(
+                './/ax214:customerName',
+                namespaces
+            )
+
+            scores = dom.findall(
+                './/ax214:score',
+                namespaces
+            )
+            # print(name.text)
+            name_scores = []
+            max_name = ""
+            max_score = 0.0
+            for name, score in zip(customerNames, scores):
+                name_scores.append((name.text,float(score.text)))
+
+                if float(score.text)>max_score:
+                    max_score = float(score.text)
+                    max_name = name.text
+
+            # print(name_scores)
+            print("max_name", max_name, "max_score", max_score)
+
+            if max_name is None or max_name == "" or max_score<0.75:
+                continue
+
+            if max_name not in namesays:
+                namesays[max_name] = time.time()
+                print("say_name", max_name)
+                engine.say(max_name)
+                engine.runAndWait()
+            else:
+                if time.time() - namesays[max_name] > 60:
+                    namesays[max_name] = time.time()
+                    print("say_name", max_name)
+                    engine.say(max_name)
+                    engine.runAndWait()
+
+            # imgPaths = dom.findall(
+            #     './/ax233:imgPath',
+            #     namespaces
+            # )
+            # # print(name.text)
+            # request_id = ""
+            # for imgPath in imgPaths:
+            #     print(imgPath.text)
+            #     request_id = os.path.splitext(os.path.basename(imgPath.text))[0]
+
+            # statement = f'UPDATE SMART_QUEUE SET RECORD_STATUS = \'C\' WHERE REQUEST_ID = {request_id}'
+            # cursor.execute(statement)
+            # connection.commit()
+
+            # for row in cursor.execute(f'SELECT RECORD_STATUS FROM SMART_QUEUE WHERE REQUEST_ID = {request_id}'):
+            #     print(row)
 
 if __name__ == '__main__':
     main_logger.info("Starting application")
@@ -398,8 +482,8 @@ if __name__ == '__main__':
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")
     share_param.tracking_multiCam = TrackingMultiCam(share_param.sdk_config["tracking"])
-    main_logger.info("Init RedisClient")
-    share_param.redisClient = redis.StrictRedis(host=share_param.dev_config["REDIS"]["host"], port=share_param.dev_config["REDIS"]["port"], db=0)
+    # main_logger.info("Init RedisClient")
+    # share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 
     if share_param.dev_config["DATA"]["reload_database"]:
         share_param.facerec_system.create_database_from_folders(share_param.dev_config["DATA"]["photo_path"])

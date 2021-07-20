@@ -25,7 +25,7 @@ handler = logging.FileHandler("main.log")
 handler.setFormatter(formatter)
 
 main_logger = logging.getLogger(__name__)
-main_logger.setLevel(logging.DEBUG)
+# main_logger.setLevel(logging.DEBUG)
 main_logger.addHandler(handler)
 
 def cam_thread_fun(deviceID: int, camURL: str):
@@ -194,9 +194,11 @@ def recogn_thread_fun():
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 # equalize
-                YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
-                YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
-                equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+                # YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
+                # YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
+                # equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+
+                equ = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR)
 
                 cv2.imwrite(photo_path,  equ)
                 support.add_redis_queue(equ)
@@ -384,8 +386,9 @@ def imshow_thread_fun():
 
 def redis_thread_fun():
     namespaces = {
-                'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd'
-            }
+        'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd',
+        'ax214': 'http://entity.ewallet.lpb.com/xsd'
+    }
 
     connection = cx_Oracle.connect(user=share_param.dev_config["ORACLE"]["user"], password=share_param.dev_config["ORACLE"]["password"], 
                                 dsn=share_param.dev_config["ORACLE"]["dsn"])
@@ -393,6 +396,8 @@ def redis_thread_fun():
 
     engine = pyttsx3.init()
     engine.setProperty('voice', 'vietnam')
+
+    namesays = {}
 
     while not share_param.bExit:
         if not share_param.bRunning:
@@ -404,44 +409,66 @@ def redis_thread_fun():
             # share_param.redisClient.lpush("image",support.opencv_to_base64(image))
             base64_img = support.opencv_to_base64(image)
             soap_message = support.get_soap_message(base64_img)
+            # print(soap_message)
             x = requests.post(share_param.dev_config["SOAP"]["url"], data = soap_message, headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction":""}, timeout=60)
             
+            # print(x.text)
             # define namespace mappings to use as shorthand below
             dom = ET.fromstring(x.content)
-            fullNames = dom.findall(
-                './/ax233:fullName',
+            customerNames = dom.findall(
+                './/ax214:customerName',
+                namespaces
+            )
+
+            scores = dom.findall(
+                './/ax214:score',
                 namespaces
             )
             # print(name.text)
-            name = ""
-            for fullName in fullNames:
-                print(fullName.text)
-                if fullName.text is not None or len(fullName.text) > 0:
-                    name = fullName.text
-            print("name", name)
+            name_scores = []
+            max_name = ""
+            max_score = 0.0
+            for name, score in zip(customerNames, scores):
+                name_scores.append((name.text,float(score.text)))
 
-            if name=="" or name is None:
+                if float(score.text)>max_score:
+                    max_score = float(score.text)
+                    max_name = name.text
+
+            # print(name_scores)
+            print("max_name", max_name, "max_score", max_score)
+
+            if max_name is None or max_name == "" or max_score<0.75:
                 continue
 
-            engine.say(name)
-            engine.runAndWait()
+            if max_name not in namesays:
+                namesays[max_name] = time.time()
+                print("say_name", max_name)
+                engine.say(max_name)
+                engine.runAndWait()
+            else:
+                if time.time() - namesays[max_name] > 60:
+                    namesays[max_name] = time.time()
+                    print("say_name", max_name)
+                    engine.say(max_name)
+                    engine.runAndWait()
 
-            imgPaths = dom.findall(
-                './/ax233:imgPath',
-                namespaces
-            )
-            # print(name.text)
-            request_id = ""
-            for imgPath in imgPaths:
-                print(imgPath.text)
-                request_id = os.path.splitext(os.path.basename(imgPath.text))[0]
+            # imgPaths = dom.findall(
+            #     './/ax233:imgPath',
+            #     namespaces
+            # )
+            # # print(name.text)
+            # request_id = ""
+            # for imgPath in imgPaths:
+            #     print(imgPath.text)
+            #     request_id = os.path.splitext(os.path.basename(imgPath.text))[0]
 
-            statement = f'UPDATE SMART_QUEUE SET RECORD_STATUS = \'C\' WHERE REQUEST_ID = {request_id}'
-            cursor.execute(statement)
-            connection.commit()
+            # statement = f'UPDATE SMART_QUEUE SET RECORD_STATUS = \'C\' WHERE REQUEST_ID = {request_id}'
+            # cursor.execute(statement)
+            # connection.commit()
 
-            for row in cursor.execute(f'SELECT RECORD_STATUS FROM SMART_QUEUE WHERE REQUEST_ID = {request_id}'):
-                print(row)
+            # for row in cursor.execute(f'SELECT RECORD_STATUS FROM SMART_QUEUE WHERE REQUEST_ID = {request_id}'):
+            #     print(row)
 
 if __name__ == '__main__':
     main_logger.info("Starting application")

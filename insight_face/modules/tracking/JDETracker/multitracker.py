@@ -344,7 +344,7 @@ class JDETracker(object):
 
         # Update the self.tracked_stracks and self.lost_stracks using the updates in this step.
         self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
-        print(self.tracked_stracks)
+        # print(self.tracked_stracks)
         self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_starcks)
         self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
         # self.lost_stracks = [t for t in self.lost_stracks if t.state == TrackState.Lost]  # type: list[STrack]
@@ -357,7 +357,7 @@ class JDETracker(object):
         # get scores of lost tracks
         output_stracks = [track for track in self.tracked_stracks if track.is_activated]
 
-        print(self.frame_id)
+        # print(self.frame_id)
         # logger.debug('===========Frame {}=========='.format(self.frame_id))
         # logger.debug('Activated: {}'.format([track.track_id for track in activated_starcks]))
         # logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
@@ -539,7 +539,7 @@ class CustomJDETracker(object):
 
         # Update the self.tracked_stracks and self.lost_stracks using the updates in this step.
         self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
-        print(self.tracked_stracks)
+        # print(self.tracked_stracks)
         self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_starcks)
         self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
         # self.lost_stracks = [t for t in self.lost_stracks if t.state == TrackState.Lost]  # type: list[STrack]
@@ -552,7 +552,7 @@ class CustomJDETracker(object):
         # get scores of lost tracks
         output_stracks = [track for track in self.tracked_stracks if track.is_activated]
 
-        print(self.frame_id)
+        # print(self.frame_id)
         # logger.debug('===========Frame {}=========='.format(self.frame_id))
         # logger.debug('Activated: {}'.format([track.track_id for track in activated_starcks]))
         # logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))

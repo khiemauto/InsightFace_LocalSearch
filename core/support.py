@@ -6,10 +6,10 @@ import cv2
 import base64
 from datetime import datetime
     
-soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.showroom.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
+soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
    <soapenv:Header/>
    <soapenv:Body>
-      <esm:getSmartCustVip>
+      <esm:faceSearch>
          <!--Optional:-->
          <esm:request>
             <!--Optional:-->
@@ -17,7 +17,7 @@ soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
                <!--Optional:-->
                <xsd1:channelCode>M</xsd1:channelCode>
                <!--Optional:-->
-               <xsd1:deviceId>hungdv</xsd1:deviceId>
+               <xsd1:deviceId>khiemtv</xsd1:deviceId>
                <!--Optional:-->
                <xsd1:ip>127.0.0.1</xsd1:ip>
                <!--Optional:-->
@@ -25,12 +25,12 @@ soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
                <!--Optional:-->
                <xsd1:txnTime>{txnTime}</xsd1:txnTime>
                <!--Optional:-->
-               <xsd1:userName>hungdv</xsd1:userName>
+               <xsd1:userName>khiemtv</xsd1:userName>
             </xsd:header>
-            <!--Zero or more repetitions:-->
-            <xsd:imgBase64>{base64}</xsd:imgBase64>
+            <!--Optional:-->
+            <xsd:imageFace>{base64}</xsd:imageFace>
          </esm:request>
-      </esm:getSmartCustVip>
+      </esm:faceSearch>
    </soapenv:Body>
 </soapenv:Envelope>'''
 
@@ -93,11 +93,11 @@ def opencv_to_base64(image: np.ndarray) -> str:
         raise ValueError("image empty!")
     # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     retval, buffer = cv2.imencode(".jpg", image)
-    bas64img = base64.b64encode(buffer)
+    bas64img = base64.b64encode(buffer).decode("utf-8")
     return bas64img
 
 def get_soap_message(base64_img: str) -> str:
-    txnId = datetime.now().strftime("%Y%m%d%H%M%S")
+    txnId = datetime.now().strftime("%Y%m%d%H%M%S%f")[:-3]
     txnTime = txnId
     soap_message = soap_format.format(txnId=txnId, txnTime=txnTime, base64=base64_img)
     return soap_message

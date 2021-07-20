@@ -109,7 +109,7 @@ class FaceAttributes():
 
     def detect(self, image: np.ndarray):
         face_tensor = self._preprocess(image)
-        print(face_tensor.shape)
+        # print(face_tensor.shape)
 
         # Get names and colors
 
@@ -122,7 +122,7 @@ class FaceAttributes():
         # Inference
         preTime = time.time()
         pred = self.model(img, augment=self.model_config["augment"])[0]
-        print(f'Attributes: {time.time() - preTime:.3f}')
+        # print(f'Attributes: {time.time() - preTime:.3f}')
 
         # Apply NMS
         pred = non_max_suppression(pred, self.model_config["conf_thres"], self.model_config["iou_thres"], agnostic=self.model_config["agnostic_nms"])[0]
@@ -146,7 +146,7 @@ class FaceAttributes():
         # Inference
         preTime = time.time()
         pred = self.model(imgs, augment=self.model_config["augment"])[0]
-        print(f'Attributes: {time.time() - preTime:.3f}')
+        # print(f'Attributes: {time.time() - preTime:.3f}')
 
         # Apply NMS
         preds = non_max_suppression(pred, self.model_config["conf_thres"], self.model_config["iou_thres"], agnostic=self.model_config["agnostic_nms"])

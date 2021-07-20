@@ -189,9 +189,11 @@ def recogn_thread_fun():
                 filename = user + "G.jpg"
                 photo_path = os.path.join("dataset/bestphotos", filename)
                 # equalize
-                YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
-                YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
-                equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+                # YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
+                # YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
+                # equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+
+                equ = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR)
 
                 cv2.imwrite(photo_path,  equ)
                 support.add_redis_queue(equ)

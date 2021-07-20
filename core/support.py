@@ -5,6 +5,10 @@ import numpy as np
 import cv2
 import base64
 from datetime import datetime
+from gtts import gTTS
+from io import BytesIO
+from pydub import AudioSegment
+from pydub.playback import play
     
 soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:esm="http://esmac.ewallet.lpb.com" xmlns:xsd="http://request.ewallet.lpb.com/xsd" xmlns:xsd1="http://common.entity.ewallet.lpb.com/xsd">
    <soapenv:Header/>
@@ -101,3 +105,12 @@ def get_soap_message(base64_img: str) -> str:
     txnTime = txnId
     soap_message = soap_format.format(txnId=txnId, txnTime=txnTime, base64=base64_img)
     return soap_message
+
+def say_name(name: str):
+    tts = gTTS(text=f'Xin chào, {name}', lang='vi')
+    fp = BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+
+    song = AudioSegment.from_file(fp, format="mp3")
+    play(song)

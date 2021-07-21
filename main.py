@@ -430,7 +430,13 @@ def redis_thread_fun():
             max_name = ""
             max_score = 0.0
             for name, score in zip(customerNames, scores):
-                name_scores.append((name.text,float(score.text)))
+                if name.text is None or score.text is None:
+                    continue
+                try:
+                    name_scores.append((name.text,float(score.text)))
+                except:
+                    print("Can't convert score string to number")
+                    continue
 
                 if float(score.text)>max_score:
                     max_score = float(score.text)

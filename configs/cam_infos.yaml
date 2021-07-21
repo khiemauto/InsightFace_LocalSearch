@@ -1,9 +1,9 @@
 CamInfos:
   - DeviceID: 1
     LinkRTSP: rtsp://admin:123456a@@10.38.79.209
-    illumination_threshold: 0.3
-    blur_threshold: 0.3  #0.70
-  - DeviceID: 2
-    LinkRTSP: rtsp://admin:lpbadmin432@@10.38.79.211/profile2/media.smp
-    illumination_threshold: 0.3
-    blur_threshold: 0.3  #0.70
+    illumination_threshold: 0.15
+    blur_threshold: 0.15  #0.70
+  # - DeviceID: 2
+  #   LinkRTSP: rtsp://admin:lpbadmin432@@10.38.79.211/profile2/media.smp
+  #   illumination_threshold: 0.3
+  #   blur_threshold: 0.3  #0.70

@@ -248,7 +248,7 @@ def recogn_thread_fun():
             descriptors = share_param.facerec_system.sdk.get_descriptor_batch(faceAligns)
             # preTime = time.time()
             # print(len(faceCropExpands))
-            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceExpands)
+            attributes = share_param.facerec_system.sdk.attributes.detect_batch(faceAligns)
             # print("Attributes of",len(faceAligns), time.time() - preTime)
             del faceAligns
             del faceExpands

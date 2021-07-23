@@ -1,6 +1,6 @@
 yolov5s:
   weights: weights/yolov5_face_attrs.pt            #model.pt path(s)
-  img_size: 224                                     #inference size (pixels)
+  img_size: 128                                     #inference size (pixels)
   conf_thres: 0.25        #object confidence threshold
   iou_thres: 0.9         #IOU threshold for NMS
   agnostic_nms: False      #class-agnostic NMS

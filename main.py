@@ -7,6 +7,8 @@ from datetime import datetime
 import cv2
 import numpy as np
 import redis
+import uvicorn
+from core.rest import FaceRecogAPI
 
 from core import support, share_param
 from insight_face.modules.tracking.custom_tracking import TrackingMultiCam
@@ -447,17 +449,19 @@ def redis_thread_fun():
             if max_name is None or max_name == "" or max_score<0.75:
                 continue
 
-            if max_name not in namesays:
-                namesays[max_name] = time.time()
-                # print("say_name", max_name)
-                support.say_name(max_name)
+            support.add_sayname_queue(max_name)
+
+        while not share_param.sayname_queue.empty():
+            name = share_param.sayname_queue.get()
+            if name not in namesays:
+                namesays[name] = time.time()
+                support.say_name(name)
             else:
-                if time.time() - namesays[max_name] > 60:
-                    namesays[max_name] = time.time()
-                    # print("say_name", max_name)
-                    support.say_name(max_name)
+                if time.time() - namesays[name] > 60:
+                    namesays[name] = time.time()
+                    support.say_name(name)
                 else:
-                    namesays[max_name] = time.time()
+                    namesays[name] = time.time()
 
 if __name__ == '__main__':
     main_logger.info("Starting application")
@@ -471,6 +475,7 @@ if __name__ == '__main__':
     share_param.facerec_system = FaceRecognitionSystem(share_param.dev_config["DATA"]["photo_path"], share_param.sdk_config )
     main_logger.info("Init TrackingMultiCam")
     share_param.tracking_multiCam = TrackingMultiCam(share_param.sdk_config["tracking"])
+    share_param.app = FaceRecogAPI()
     # main_logger.info("Init RedisClient")
     # share_param.redisClient = redis.StrictRedis(share_param.dev_config["REDIS"]["host"], share_param.dev_config["REDIS"]["port"])
 
@@ -484,6 +489,7 @@ if __name__ == '__main__':
     share_param.recogn_queue = queue.Queue(maxsize=share_param.RECOGN_QUEUE_SIZE*share_param.batch_size+1)
     share_param.imshow_queue = queue.Queue(maxsize=share_param.IMSHOW_QUEUE_SIZE*share_param.batch_size+1)
     share_param.redis_queue = queue.Queue(maxsize=share_param.REDIS_QUEUE_SIZE*share_param.batch_size+1)
+    share_param.sayname_queue = queue.Queue(maxsize=share_param.SAYNAME_QUEUE_SIZE*share_param.batch_size+1)
 
     for cam_info in share_param.cam_infos["CamInfos"]:
         deviceID = cam_info["DeviceID"]
@@ -500,6 +506,10 @@ if __name__ == '__main__':
     share_param.recogn_thread = threading.Thread(target=recogn_thread_fun, daemon=True, args=())
     share_param.imshow_thread = threading.Thread(target=imshow_thread_fun, daemon=True, args=())
     share_param.redis_thread = threading.Thread(target=redis_thread_fun, daemon=True, args=())
+    share_param.api_thread = threading.Thread(target=uvicorn.run, daemon=True, 
+                                            kwargs={"app": share_param.app, 
+                                            "host": share_param.dev_config["APISERVER"]["host"], 
+                                            "port": share_param.dev_config["APISERVER"]["port"]})
 
     for deviceID in share_param.cam_threads:
         share_param.cam_threads[deviceID].start()
@@ -512,6 +522,9 @@ if __name__ == '__main__':
     main_logger.info(f"imshow_thread started")
     share_param.redis_thread.start()
     main_logger.info(f"redis_thread started")
+    share_param.api_thread.start()
+    main_logger.info(f"api_thread started")
+
     share_param.redis_thread.join()
     main_logger.info(f"redis_thread quited")
     share_param.imshow_thread.join()

@@ -15,3 +15,6 @@ ORACLE:
   user: ESMAC_VV_TE
   password: esmac_vv_te
   dsn: 10.36.126.42:1521/VIVIET
+APISERVER:
+  host: 0.0.0.0
+  port: 8000

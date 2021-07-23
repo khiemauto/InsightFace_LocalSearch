@@ -121,6 +121,11 @@ def add_redis_queue(img: np.ndarray):
             share_param.redis_queue.get()
     share_param.redis_queue.put(img)
 
+def add_sayname_queue(name: str):
+    while share_param.sayname_queue.qsize() > share_param.SAYNAME_QUEUE_SIZE*share_param.batch_size:
+            share_param.sayname_queue.get()
+    share_param.sayname_queue.put(name)
+
 def opencv_to_base64(image: np.ndarray) -> str:
     if image is None or image.size == 0:
         raise ValueError("image empty!")

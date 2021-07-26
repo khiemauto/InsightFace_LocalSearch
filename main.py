@@ -162,11 +162,15 @@ def detect_thread_fun():
 
         main_logger.debug(f"Detect Time: {time.time() - totalTime}")
 
+user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime, customerName]}
+
 def recogn_thread_fun():
+
+    global user_qualityscore_face_firsttime
     totalTime = time.time()
     trackidtoname = {}      #{(deviceID,trackID): name}
 
-    user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime]}
+    # user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime, customerName]}
 
     FPS = {}
 
@@ -187,24 +191,28 @@ def recogn_thread_fun():
                 del user_qualityscore_face_firsttime[user]
                 trackidtoname = { k:v for k, v in trackidtoname.items() if v!=user }
                 continue
+
+            #Check new request
             if user_qualityscore_face_firsttime[user][5]:
                 continue
-            if time.time() - user_qualityscore_face_firsttime[user][3] > 1.0:
-                filename = user + "G.jpg"
-                photo_path = os.path.join("dataset/bestphotos", filename)
-                # equalize
-                # YCrCb = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2YCrCb)
-                # YCrCb[:,:,0] = cv2.equalizeHist(YCrCb[:,:,0])
-                # equ = cv2.cvtColor(YCrCb, cv2.COLOR_YCR_CB2BGR)
+            #Check if user already has an customer name?
+            if user_qualityscore_face_firsttime[user][7] != "":
+                continue
 
-                equ = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR)
+            #Check time from the last best face.
+            if time.time() - user_qualityscore_face_firsttime[user][3] < 2.0:
+                continue
 
-                cv2.imwrite(photo_path,  equ)
-                support.add_redis_queue(equ)
-                
-                user_qualityscore_face_firsttime[user][4] = None
-                user_qualityscore_face_firsttime[user][5] = True
-                main_logger.info(f"Push face {user} to redis")
+            filename = user + "G.jpg"
+            photo_path = os.path.join("dataset/bestphotos", filename)
+            equ = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR)
+
+            cv2.imwrite(photo_path,  equ)
+            support.add_redis_queue(user, equ)
+            
+            user_qualityscore_face_firsttime[user][4] = None
+            user_qualityscore_face_firsttime[user][5] = True
+            main_logger.info(f"Push face {user} to redis")
 
         if share_param.detect_queue.empty():
             continue
@@ -316,10 +324,10 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
 
-                        if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
-                            main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
+                        # if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
+                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+                        main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
@@ -336,10 +344,10 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
 
-                        if user_qualityscore_face_firsttime[user_name][5] == True:
-                            user_qualityscore_face_firsttime[user_name][5] = False
-                            user_qualityscore_face_firsttime[user_name][3] = time.time()
-                            main_logger.info(f"Found a better face of {user_name}")
+                        # if user_qualityscore_face_firsttime[user_name][5] == True:
+                        user_qualityscore_face_firsttime[user_name][5] = False
+                        user_qualityscore_face_firsttime[user_name][3] = time.time()
+                        main_logger.info(f"Found a better face of {user_name}")
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")
@@ -350,10 +358,16 @@ def recogn_thread_fun():
                     if "hand" not in attribute and "mask" not in attribute and isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
-                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time()]
+                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), ""]
                         filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/firstphotos", filename)
-                        cv2.imwrite(photo_path, cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR))
+
+                        first_face_bgr = cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR)
+                        cv2.imwrite(photo_path, first_face_bgr)
+                        support.add_redis_queue(new_user_name, first_face_bgr)
+                        
+                        user_qualityscore_face_firsttime[new_user_name][4] = None
+                        user_qualityscore_face_firsttime[new_user_name][5] = True
                         main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)
@@ -393,6 +407,7 @@ def imshow_thread_fun():
     cv2.destroyAllWindows()
 
 def redis_thread_fun():
+    global user_qualityscore_face_firsttime
     namespaces = {
         'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd',
         'ax214': 'http://entity.ewallet.lpb.com/xsd',
@@ -406,7 +421,7 @@ def redis_thread_fun():
         else:
             time.sleep(0.01)
         while not share_param.redis_queue.empty():
-            image = share_param.redis_queue.get()
+            user_name, image = share_param.redis_queue.get()
             base64_img = support.opencv_to_base64(image)
             soap_message = support.get_soap_message(base64_img)
             try:
@@ -447,7 +462,9 @@ def redis_thread_fun():
 
             if max_name is None or max_name == "" or max_score<0.75:
                 continue
-
+            
+            if user_name in user_qualityscore_face_firsttime:
+                user_qualityscore_face_firsttime[user_name][7] = max_name
             support.add_sayname_queue(max_name)
 
         while not share_param.sayname_queue.empty():

@@ -1,10 +1,10 @@
 detector:                           # retina face detector
   image_size: 320                   # image size input to detector. Default=224
   nms_threshold: 0.7                # nms
-  conf_threshold: 0.8               # confidence
+  conf_threshold: 0.9               # confidence
   minface: 50                       # min face size. Default=50
   device: cuda                       # cpu, cuda
-  architecture: mnet1               # res50 (ResNet 50), mnet1 (mobilenet1)
+  architecture: res50               # res50 (ResNet 50), mnet1 (mobilenet1)
   batch_size: 2                     # for only openvino
 embedder:                           # face image to 512D
   image_size: 112                   # input size of emmbeder 

@@ -116,10 +116,10 @@ def add_detect_queue(data):
         share_param.detect_queue.get()
     share_param.detect_queue.put(data)
 
-def add_redis_queue(img: np.ndarray):
+def add_redis_queue(user_name: str, img: np.ndarray):
     while share_param.redis_queue.qsize() > share_param.REDIS_QUEUE_SIZE*share_param.batch_size:
             share_param.redis_queue.get()
-    share_param.redis_queue.put(img)
+    share_param.redis_queue.put((user_name, img))
 
 def add_sayname_queue(name: str):
     while share_param.sayname_queue.qsize() > share_param.SAYNAME_QUEUE_SIZE*share_param.batch_size:

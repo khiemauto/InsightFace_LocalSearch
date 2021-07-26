@@ -6,7 +6,6 @@ import os
 from datetime import datetime
 import cv2
 import numpy as np
-import redis
 import uvicorn
 from core.rest import FaceRecogAPI
 
@@ -14,7 +13,7 @@ from core import support, share_param
 from insight_face.modules.tracking.custom_tracking import TrackingMultiCam
 from insight_face.utils.database import FaceRecognitionSystem
 from insight_face.modules.evalution.custom_evaluter import CustomEvaluter
-import csv
+# import csv
 import logging
 import requests
 
@@ -171,8 +170,8 @@ def recogn_thread_fun():
 
     FPS = {}
 
-    csvfile = open('blur.csv', 'w')
-    spamwriter = csv.writer(csvfile, delimiter=',')
+    # csvfile = open('blur.csv', 'w')
+    # spamwriter = csv.writer(csvfile, delimiter=',')
     # csvfile.close()
 
     while not share_param.bExit:
@@ -363,7 +362,7 @@ def recogn_thread_fun():
         #     print(f"FPS {deviceId} {FPS[deviceId]}")
         
         main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
-    csvfile.close()
+    # csvfile.close()
 
 
 def imshow_thread_fun():

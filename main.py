@@ -326,7 +326,8 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
 
                         # if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
-                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                        if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
                         main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
@@ -347,7 +348,8 @@ def recogn_thread_fun():
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
 
                         # if user_qualityscore_face_firsttime[user_name][5] == True:
-                        user_qualityscore_face_firsttime[user_name][5] = False
+                        if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                            user_qualityscore_face_firsttime[user_name][5] = False
                         user_qualityscore_face_firsttime[user_name][3] = time.time()
                         main_logger.info(f"Found a better face of {user_name}")
 

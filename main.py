@@ -186,7 +186,7 @@ def recogn_thread_fun():
         time.sleep(0.001)
 
         for user in list(user_qualityscore_face_firsttime):
-            if time.time() - user_qualityscore_face_firsttime[user][6] > 180.0:
+            if time.time() - user_qualityscore_face_firsttime[user][6] > 1800.0:
                 share_param.facerec_system.del_photo_by_user_name(user)
                 del user_qualityscore_face_firsttime[user]
                 trackidtoname = { k:v for k, v in trackidtoname.items() if v!=user }
@@ -319,7 +319,7 @@ def recogn_thread_fun():
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if "hand" not in attribute and "mask" not in attribute and isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
                         user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
@@ -339,7 +339,7 @@ def recogn_thread_fun():
                     # print("2UpdateTime")
                     user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
 
-                    if "hand" not in attribute and "mask" not in attribute and isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
                         user_qualityscore_face_firsttime[user_name][0] = faceSize
                         user_qualityscore_face_firsttime[user_name][1] = threshnotblur
                         user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
@@ -355,7 +355,7 @@ def recogn_thread_fun():
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
-                    if "hand" not in attribute and "mask" not in attribute and isNotBlur and isStraightFace and isillumination and not overlap:
+                    if isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
                         user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), ""]
@@ -442,11 +442,17 @@ def redis_thread_fun():
                 './/ax216:score',
                 namespaces
             )
+            vips = dom.findall(
+                './/ax216:vip',
+                namespaces
+            )
+
             name_scores = []
             max_name = ""
             max_score = 0.0
-            for name, score in zip(customerNames, scores):
-                if name.text is None or score.text is None:
+            max_vip = "0"
+            for name, score, vip in zip(customerNames, scores, vips):
+                if name.text is None or score.text is None or vip.text is None:
                     continue
                 try:
                     name_scores.append((name.text,float(score.text)))
@@ -457,27 +463,32 @@ def redis_thread_fun():
                 if float(score.text)>max_score:
                     max_score = float(score.text)
                     max_name = name.text
+                    max_vip = vip.text
 
-            print("max_name", max_name, "max_score", max_score)
+            print("max_name", max_name, "max_score", max_score, "max_vip", max_vip)
 
-            if max_name is None or max_name == "" or max_score<0.75:
+            if max_name is None or max_name == "" or max_score<0.85 or max_vip != "1":
                 continue
             
             if user_name in user_qualityscore_face_firsttime:
                 user_qualityscore_face_firsttime[user_name][7] = max_name
             support.add_sayname_queue(max_name)
 
-        while not share_param.sayname_queue.empty():
-            name = share_param.sayname_queue.get()
-            if name not in namesays:
-                namesays[name] = time.time()
-                support.say_name(name)
-            else:
-                if time.time() - namesays[name] > 60:
+        try:
+            while not share_param.sayname_queue.empty():
+                name = share_param.sayname_queue.get()
+                if name not in namesays:
                     namesays[name] = time.time()
                     support.say_name(name)
                 else:
-                    namesays[name] = time.time()
+                    if time.time() - namesays[name] > 1800:
+                        namesays[name] = time.time()
+                        support.say_name(name)
+                    else:
+                        namesays[name] = time.time()
+        except:
+            print("Error can't say name")
+            continue
 
 if __name__ == '__main__':
     main_logger.info("Starting application")

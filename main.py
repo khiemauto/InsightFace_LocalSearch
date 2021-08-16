@@ -369,6 +369,9 @@ def recogn_thread_fun():
                         first_face_bgr = cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR)
                         cv2.imwrite(photo_path, first_face_bgr)
                         support.add_redis_queue(new_user_name, first_face_bgr)
+
+                        full_bgr =  cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                        cv2.imwrite(os.path.join("dataset/firstphotos", new_user_name + "U.jpg"), full_bgr)
                         
                         user_qualityscore_face_firsttime[new_user_name][4] = None
                         user_qualityscore_face_firsttime[new_user_name][5] = True

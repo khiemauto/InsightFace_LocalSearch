@@ -24,7 +24,7 @@ handler = logging.FileHandler("main.log")
 handler.setFormatter(formatter)
 
 main_logger = logging.getLogger(__name__)
-# main_logger.setLevel(logging.INFO)
+# main_logger.setLevel(logging.DEBUG)
 main_logger.addHandler(handler)
 
 def cam_thread_fun(deviceID: int, camURL: str):
@@ -157,7 +157,29 @@ def detect_thread_fun():
                 bbox_keeps.append(np.asarray(bbox))
                 landmark_keeps.append(np.asarray(landmark))
             
-            data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
+            # print("bbox_keeps", bbox_keeps)
+            if len(faceCropExpand_keeps)>0:
+                post_bboxes_batch, post_landmarks_batch = share_param.facerec_system.sdk.detect_post_faces_batch(faceCropExpand_keeps)
+            else:
+                post_bboxes_batch, post_landmarks_batch = [], []
+            # print("post_bboxes_batch", post_bboxes_batch)
+
+            post_bbox_keeps = []
+            post_landmark_keeps = []
+            post_faceCropExpand_keeps = []
+            
+            for i, (post_bboxes, post_landmarks) in enumerate(zip(post_bboxes_batch, post_landmarks_batch)):
+                if len(post_bboxes) == 0:
+                    cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand_keeps[i])
+                    print("detect_post ignore face")
+                    continue
+
+                post_bbox_keeps.append(bbox_keeps[i])
+                post_landmark_keeps.append(landmark_keeps[i])
+                post_faceCropExpand_keeps.append(faceCropExpand_keeps[i])
+
+            data = (deviceId, post_bbox_keeps, post_landmark_keeps, post_faceCropExpand_keeps, rgb)
+            # data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
             support.add_detect_queue(data)
 
         main_logger.debug(f"Detect Time: {time.time() - totalTime}")

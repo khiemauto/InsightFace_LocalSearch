@@ -33,6 +33,7 @@ class FaceRecognitionSDK:
 
         logger.info("Start SDK initialization.")
         self.detector = RetinaFace(config["detector"])
+        self.detector_post = RetinaFace(config["detector_post"])
         self.embedder = InsightFaceEmbedder(config["embedder"])
         self.attributes = FaceAttributes(config["attributes"])
         self.database = FaissFaceStorage(config["database"])
@@ -193,6 +194,30 @@ class FaceRecognitionSDK:
         """
         logger.debug("Start faces detection.")
         bboxes_batch, landmarks_batch = self.detector.predict_batch(images)
+        logger.debug(f"Finish faces detection. Count of detected frame: {len(bboxes_batch)}.")
+        return bboxes_batch, landmarks_batch
+
+    def detect_post_faces(self, image: np.ndarray):
+        """
+        Detect all faces on the image.
+
+        Args:
+            image: numpy image (H,W,3) in RGB format.
+        """
+        logger.debug("Start faces detection.")
+        bboxes, landmarks = self.detector_post.predict(image)
+        logger.debug(f"Finish faces detection. Count of detected faces: {len(bboxes)}.")
+        return bboxes, landmarks
+
+    def detect_post_faces_batch(self, images: List[np.ndarray]):
+        """
+        Detect all faces on the image.
+
+        Args:
+            image: numpy image (H,W,3) in RGB format.
+        """
+        logger.debug("Start faces detection.")
+        bboxes_batch, landmarks_batch = self.detector_post.predict_batch(images)
         logger.debug(f"Finish faces detection. Count of detected frame: {len(bboxes_batch)}.")
         return bboxes_batch, landmarks_batch
 

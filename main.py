@@ -403,7 +403,7 @@ def recogn_thread_fun():
                         
                         user_qualityscore_face_firsttime[new_user_name][4] = None
                         user_qualityscore_face_firsttime[new_user_name][5] = True
-                        user_qualityscore_face_firsttime[user][8] += 1
+                        user_qualityscore_face_firsttime[new_user_name][8] += 1
                         main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)

@@ -1,5 +1,5 @@
 detector:                           # retina face detector
-  image_size: 320                   # image size input to detector. Default=224
+  image_size: 480                   # image size input to detector. Default=224
   nms_threshold: 0.7                # nms
   conf_threshold: 0.9               # confidence
   minface: 70                       # min face size. Default=50

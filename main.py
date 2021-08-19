@@ -498,7 +498,7 @@ def redis_thread_fun():
 
             print("max_name", max_name, "max_score", max_score, "max_vip", max_vip)
 
-            if max_name is None or max_name == "" or max_score<0.85 or max_vip != "1":
+            if max_name is None or max_name == "" or max_score<0.85:
                 continue
             
             if user_name in user_qualityscore_face_firsttime:

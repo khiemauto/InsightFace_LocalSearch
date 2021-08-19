@@ -158,30 +158,30 @@ def detect_thread_fun():
                 landmark_keeps.append(np.asarray(landmark))
             
             # print("bbox_keeps", bbox_keeps)
-            post_bboxes_batch, post_landmarks_batch = [], []
+            # post_bboxes_batch, post_landmarks_batch = [], []
 
-            for faceCropExpand_keep in faceCropExpand_keeps:
-                post_bboxes, post_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand_keep)
-                post_bboxes_batch.append(post_bboxes)
-                post_landmarks_batch.append(post_landmarks)
-            # print("post_bboxes_batch", post_bboxes_batch)
+            # for faceCropExpand_keep in faceCropExpand_keeps:
+            #     post_bboxes, post_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand_keep)
+            #     post_bboxes_batch.append(post_bboxes)
+            #     post_landmarks_batch.append(post_landmarks)
+            # # print("post_bboxes_batch", post_bboxes_batch)
 
-            post_bbox_keeps = []
-            post_landmark_keeps = []
-            post_faceCropExpand_keeps = []
+            # post_bbox_keeps = []
+            # post_landmark_keeps = []
+            # post_faceCropExpand_keeps = []
             
-            for i, (post_bboxes, post_landmarks) in enumerate(zip(post_bboxes_batch, post_landmarks_batch)):
-                if len(post_bboxes) == 0:
-                    cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand_keeps[i])
-                    print("detect_post ignore face")
-                    continue
+            # for i, (post_bboxes, post_landmarks) in enumerate(zip(post_bboxes_batch, post_landmarks_batch)):
+            #     if len(post_bboxes) == 0:
+            #         cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand_keeps[i])
+            #         print("detect_post ignore face")
+            #         continue
 
-                post_bbox_keeps.append(bbox_keeps[i])
-                post_landmark_keeps.append(landmark_keeps[i])
-                post_faceCropExpand_keeps.append(faceCropExpand_keeps[i])
+            #     post_bbox_keeps.append(bbox_keeps[i])
+            #     post_landmark_keeps.append(landmark_keeps[i])
+            #     post_faceCropExpand_keeps.append(faceCropExpand_keeps[i])
 
-            data = (deviceId, post_bbox_keeps, post_landmark_keeps, post_faceCropExpand_keeps, rgb)
-            # data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
+            # data = (deviceId, post_bbox_keeps, post_landmark_keeps, post_faceCropExpand_keeps, rgb)
+            data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
             support.add_detect_queue(data)
 
         main_logger.debug(f"Detect Time: {time.time() - totalTime}")
@@ -348,16 +348,22 @@ def recogn_thread_fun():
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
-                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, trackidtoname[(deviceId,trackid)])
-                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
-                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
-                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
+                        filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
+                        print(1, filter_bboxes)
+                        if len(filter_bboxes) == 0:
+                            cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
+                            print("1detect_post ignore face")
+                        else:
+                            share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, trackidtoname[(deviceId,trackid)])
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
 
-                        # if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
-                        if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
-                        user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
-                        main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
+                            # if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
+                            if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+                            main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
@@ -370,16 +376,22 @@ def recogn_thread_fun():
                     user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
 
                     if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
-                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
-                        user_qualityscore_face_firsttime[user_name][0] = faceSize
-                        user_qualityscore_face_firsttime[user_name][1] = threshnotblur
-                        user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
+                        filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
+                        print(2, filter_bboxes)
+                        if len(filter_bboxes) == 0:
+                            cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
+                            print("2detect_post ignore face")
+                        else:
+                            share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
+                            user_qualityscore_face_firsttime[user_name][0] = faceSize
+                            user_qualityscore_face_firsttime[user_name][1] = threshnotblur
+                            user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
 
-                        # if user_qualityscore_face_firsttime[user_name][5] == True:
-                        if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                            user_qualityscore_face_firsttime[user_name][5] = False
-                        user_qualityscore_face_firsttime[user_name][3] = time.time()
-                        main_logger.info(f"Found a better face of {user_name}")
+                            # if user_qualityscore_face_firsttime[user_name][5] == True:
+                            if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                user_qualityscore_face_firsttime[user_name][5] = False
+                            user_qualityscore_face_firsttime[user_name][3] = time.time()
+                            main_logger.info(f"Found a better face of {user_name}")
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")
@@ -388,23 +400,29 @@ def recogn_thread_fun():
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
                     if isNotBlur and isStraightFace and isillumination and not overlap:
-                        trackidtoname[(deviceId,trackid)] = new_user_name
-                        share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
-                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), "", 0]
-                        filename = new_user_name + "F.jpg"
-                        photo_path = os.path.join("dataset/firstphotos", filename)
+                        filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
+                        print(3, filter_bboxes)
+                        if len(filter_bboxes) == 0:
+                            cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
+                            print("3detect_post ignore face")
+                        else:
+                            trackidtoname[(deviceId,trackid)] = new_user_name
+                            share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
+                            user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), "", 0]
+                            filename = new_user_name + "F.jpg"
+                            photo_path = os.path.join("dataset/firstphotos", filename)
 
-                        first_face_bgr = cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR)
-                        cv2.imwrite(photo_path, first_face_bgr)
-                        support.add_redis_queue(new_user_name, first_face_bgr)
+                            first_face_bgr = cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR)
+                            cv2.imwrite(photo_path, first_face_bgr)
+                            support.add_redis_queue(new_user_name, first_face_bgr)
 
-                        full_bgr =  cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-                        cv2.imwrite(os.path.join("dataset/firstphotos", new_user_name + "U.jpg"), full_bgr)
-                        
-                        user_qualityscore_face_firsttime[new_user_name][4] = None
-                        user_qualityscore_face_firsttime[new_user_name][5] = True
-                        user_qualityscore_face_firsttime[new_user_name][8] += 1
-                        main_logger.info(f"Add new face {new_user_name}")
+                            full_bgr =  cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                            cv2.imwrite(os.path.join("dataset/firstphotos", new_user_name + "U.jpg"), full_bgr)
+                            
+                            user_qualityscore_face_firsttime[new_user_name][4] = None
+                            user_qualityscore_face_firsttime[new_user_name][5] = True
+                            user_qualityscore_face_firsttime[new_user_name][8] += 1
+                            main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)
 

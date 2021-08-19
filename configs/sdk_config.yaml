@@ -12,7 +12,7 @@ detector_post:                      # post detector
   nms_threshold: 0.7                # nms
   conf_threshold: 0.7               # confidence
   device: cuda                      # cpu, cuda
-  architecture: mnet1               # res50 (ResNet 50), mnet1 (mobilenet1)
+  architecture: res50               # res50 (ResNet 50), mnet1 (mobilenet1)
 
 embedder:                           # face image to 512D
   image_size: 112                   # input size of emmbeder 

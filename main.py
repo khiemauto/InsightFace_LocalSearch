@@ -194,7 +194,7 @@ def recogn_thread_fun():
     totalTime = time.time()
     trackidtoname = {}      #{(deviceID,trackID): name}
 
-    # user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime, customerName]}
+    # user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime, customerName, numPush]}
 
     FPS = {}
 
@@ -223,6 +223,9 @@ def recogn_thread_fun():
             if user_qualityscore_face_firsttime[user][7] != "":
                 continue
 
+            if user_qualityscore_face_firsttime[user][8] >3:
+                continue
+
             #Check time from the last best face.
             if time.time() - user_qualityscore_face_firsttime[user][3] < 2.0:
                 continue
@@ -236,6 +239,7 @@ def recogn_thread_fun():
             
             user_qualityscore_face_firsttime[user][4] = None
             user_qualityscore_face_firsttime[user][5] = True
+            user_qualityscore_face_firsttime[user][8] += 1
             main_logger.info(f"Push face {user} to redis")
 
         if share_param.detect_queue.empty():
@@ -386,7 +390,7 @@ def recogn_thread_fun():
                     if isNotBlur and isStraightFace and isillumination and not overlap:
                         trackidtoname[(deviceId,trackid)] = new_user_name
                         share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
-                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), ""]
+                        user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), "", 0]
                         filename = new_user_name + "F.jpg"
                         photo_path = os.path.join("dataset/firstphotos", filename)
 
@@ -399,6 +403,7 @@ def recogn_thread_fun():
                         
                         user_qualityscore_face_firsttime[new_user_name][4] = None
                         user_qualityscore_face_firsttime[new_user_name][5] = True
+                        user_qualityscore_face_firsttime[user][8] += 1
                         main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)

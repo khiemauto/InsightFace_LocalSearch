@@ -158,10 +158,12 @@ def detect_thread_fun():
                 landmark_keeps.append(np.asarray(landmark))
             
             # print("bbox_keeps", bbox_keeps)
-            if len(faceCropExpand_keeps)>0:
-                post_bboxes_batch, post_landmarks_batch = share_param.facerec_system.sdk.detect_post_faces_batch(faceCropExpand_keeps)
-            else:
-                post_bboxes_batch, post_landmarks_batch = [], []
+            post_bboxes_batch, post_landmarks_batch = [], []
+
+            for faceCropExpand_keep in faceCropExpand_keeps:
+                post_bboxes, post_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand_keep)
+                post_bboxes_batch.append(post_bboxes)
+                post_landmarks_batch.append(post_landmarks)
             # print("post_bboxes_batch", post_bboxes_batch)
 
             post_bbox_keeps = []

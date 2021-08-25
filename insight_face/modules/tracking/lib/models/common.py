@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 from torch.cuda import amp
-from dcn_v2 import DCN
+# from dcn_v2 import DCN
 
 
 def autopad(k, p=None):  # kernel, padding

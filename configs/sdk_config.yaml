@@ -1,7 +1,7 @@
 detector:                           # retina face detector
   image_size: 480                   # image size input to detector. Default=224
   nms_threshold: 0.7                # nms
-  conf_threshold: 0.9               # confidence
+  conf_threshold: 0.8               # confidence
   minface: 70                       # min face size. Default=50
   device: cuda                       # cpu, cuda
   architecture: res50               # res50 (ResNet 50), mnet1 (mobilenet1)

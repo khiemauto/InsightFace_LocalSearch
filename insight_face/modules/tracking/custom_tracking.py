@@ -36,6 +36,7 @@ class Tracking():
         # self.model_config["img_size"]
         # stride = int(self.model.stride.max())
         # resize = (self.model_config["img_size"] // stride) * stride
+        img0 = img0.copy()
         img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, (608, 608))
         img = img.transpose((2, 0, 1))

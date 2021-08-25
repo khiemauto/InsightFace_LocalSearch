@@ -12,7 +12,7 @@ detector_post:                      # post detector
   nms_threshold: 0.7                # nms
   conf_threshold: 0.7               # confidence
   device: cuda                      # cpu, cuda
-  architecture: res50               # res50 (ResNet 50), mnet1 (mobilenet1)
+  architecture: mnet1               # res50 (ResNet 50), mnet1 (mobilenet1)
 
 embedder:                           # face image to 512D
   image_size: 112                   # input size of emmbeder 
@@ -30,7 +30,7 @@ tracking:                         # Join Detection and OpenCV and Embedding trac
   threshsimilarityinstant: 0.6      # Feature similarity matching between previous frame with current frame
   threshiou: 0.2                    # IOU between opencv tracking with detection
   threshsimilarityiou: 0.2          # Feature similarity when using IOU opencv tracking-detection
-  # device: cuda                      # cpu, cuda
+  device: cuda                      # cpu, cuda
 evaluter:                           # Face quality evaluter
   ratio0_min: 0.7                   # min of left_eye_to_right_eye/middle_eye_to_middle_mouth distance
   ratio0_max: 1.2                   # max of left_eye_to_right_eye/middle_eye_to_middle_mouth distance

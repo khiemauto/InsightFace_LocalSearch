@@ -24,7 +24,7 @@ handler = logging.FileHandler("main.log")
 handler.setFormatter(formatter)
 
 main_logger = logging.getLogger(__name__)
-# main_logger.setLevel(logging.DEBUG)
+main_logger.setLevel(logging.INFO)
 main_logger.addHandler(handler)
 
 def cam_thread_fun(deviceID: int, camURL: str):
@@ -267,7 +267,7 @@ def recogn_thread_fun():
                     FPS[deviceId][0] = 0.9*FPS[deviceId][0] + 0.1*FPS[deviceId][2]
                     FPS[deviceId][2] = 0
                     FPS[deviceId][1] = time.time()
-                    main_logger.debug(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")
+                    main_logger.info(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")
 
             faceFrameInfos[(iBuffer, deviceId)] = ([], rgb)     #Init faceFrameInfos
             
@@ -347,7 +347,7 @@ def recogn_thread_fun():
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                    if isStraightFace and isillumination and not overlap:
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
                         print(1, filter_bboxes)
                         if len(filter_bboxes) == 0:
@@ -355,15 +355,14 @@ def recogn_thread_fun():
                             print("1detect_post ignore face")
                         else:
                             share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, trackidtoname[(deviceId,trackid)])
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand
-
-                            # if user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] == True:
-                            if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
-                            user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
-                            main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
+                            if threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
+                                if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
+                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
+                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand                                
+                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+                                    main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
@@ -375,7 +374,7 @@ def recogn_thread_fun():
                     # print("2UpdateTime")
                     user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
 
-                    if isStraightFace and isillumination and not overlap and threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                    if isStraightFace and isillumination and not overlap:
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
                         print(2, filter_bboxes)
                         if len(filter_bboxes) == 0:
@@ -383,15 +382,14 @@ def recogn_thread_fun():
                             print("2detect_post ignore face")
                         else:
                             share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
-                            user_qualityscore_face_firsttime[user_name][0] = faceSize
-                            user_qualityscore_face_firsttime[user_name][1] = threshnotblur
-                            user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
-
-                            # if user_qualityscore_face_firsttime[user_name][5] == True:
-                            if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                                user_qualityscore_face_firsttime[user_name][5] = False
-                            user_qualityscore_face_firsttime[user_name][3] = time.time()
-                            main_logger.info(f"Found a better face of {user_name}")
+                            if threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
+                                if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                    user_qualityscore_face_firsttime[user_name][0] = faceSize
+                                    user_qualityscore_face_firsttime[user_name][1] = threshnotblur
+                                    user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
+                                    user_qualityscore_face_firsttime[user_name][5] = False
+                                    user_qualityscore_face_firsttime[user_name][3] = time.time()
+                                    main_logger.info(f"Found a better face of {user_name}")
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")

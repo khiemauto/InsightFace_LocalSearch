@@ -223,7 +223,7 @@ def recogn_thread_fun():
             if user_qualityscore_face_firsttime[user][7] != "":
                 continue
 
-            if user_qualityscore_face_firsttime[user][8] > 1:
+            if user_qualityscore_face_firsttime[user][8] > 0:
                 continue
 
             #Check time from the last best face.

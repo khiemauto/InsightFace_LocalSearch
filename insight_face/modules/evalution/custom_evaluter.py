@@ -11,6 +11,8 @@ class CustomEvaluter:
         self.ratio1_max = config["ratio1_max"]
         self.ratio2_min = config["ratio2_min"]
         self.ratio2_max = config["ratio2_max"]
+        self.minface = config["minface"]
+        print("minface", self.minface)
 
     def check_illumination(self, image):
         if image is None or image.size == 0:
@@ -128,3 +130,9 @@ class CustomEvaluter:
         # the image will be considered "blurry" if the mean value of the
         # magnitudes is less than the threshold value
         return (mean <= thresh, mean)
+
+    def check_minface(self, faceW: float, faceH: float) -> bool:
+        if faceW < self.minface or faceH < self.minface:
+            return False
+        else:
+            return True

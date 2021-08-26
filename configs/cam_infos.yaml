@@ -3,7 +3,9 @@ CamInfos:
     LinkRTSP: rtsp://admin:123456a@@10.38.79.209
     illumination_threshold: 0.1
     blur_threshold: 0.25  #0.70
+    minface: 70
   - DeviceID: 2
     LinkRTSP: rtsp://admin:lpbadmin432@@10.38.79.211/profile2/media.smp
     illumination_threshold: 0.1
     blur_threshold: 0.35  #0.70
+    minface: 120

@@ -140,7 +140,8 @@ def detect_thread_fun():
 
                 # print(f"faceW {faceW}, faceH {faceH}")
 
-                if faceW < share_param.sdk_config["detector"]["minface"] or faceH < share_param.sdk_config["detector"]["minface"]:
+                isNotMinFace = share_param.evaluter_cams[deviceId].check_minface(faceW, faceH)
+                if not isNotMinFace:
                     continue
 
                 expandLeft = max(0, bbox[0] - faceW/3)
@@ -614,6 +615,7 @@ if __name__ == '__main__':
         evalution_config = share_param.sdk_config["evaluter"]
         evalution_config["illumination_threshold"] = cam_info["illumination_threshold"]
         evalution_config["blur_threshold"] = cam_info["blur_threshold"]
+        evalution_config["minface"] = cam_info["minface"]
 
         share_param.evaluter_cams[deviceID] = CustomEvaluter(evalution_config)
         share_param.cam_threads[deviceID] = threading.Thread(target=cam_thread_fun, daemon=True, args=(deviceID, camURL))

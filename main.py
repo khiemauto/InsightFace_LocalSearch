@@ -184,7 +184,7 @@ def detect_thread_fun():
             data = (deviceId, bbox_keeps, landmark_keeps, faceCropExpand_keeps, rgb)
             support.add_detect_queue(data)
 
-        main_logger.debug(f"Detect Time: {time.time() - totalTime}")
+        # main_logger.debug(f"Detect Time: {time.time() - totalTime}")
 
 user_qualityscore_face_firsttime = {}  #{username:[facesize, blur, straight, firsttime, faceCropExpand, Pushed, lastSeeTime, customerName]}
 
@@ -223,14 +223,14 @@ def recogn_thread_fun():
             if user_qualityscore_face_firsttime[user][7] != "":
                 continue
 
-            if user_qualityscore_face_firsttime[user][8] >3:
+            if user_qualityscore_face_firsttime[user][8] > 1:
                 continue
 
             #Check time from the last best face.
             if time.time() - user_qualityscore_face_firsttime[user][3] < 2.0:
                 continue
 
-            filename = user + "G.jpg"
+            filename = f"{user}_{user_qualityscore_face_firsttime[user][8]}.jpg"
             photo_path = os.path.join("dataset/bestphotos", filename)
             equ = cv2.cvtColor(user_qualityscore_face_firsttime[user][4], cv2.COLOR_RGB2BGR)
 
@@ -349,20 +349,32 @@ def recogn_thread_fun():
 
                     if isStraightFace and isillumination and not overlap:
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
-                        print(1, filter_bboxes)
+                        # print(1, filter_bboxes)
                         if len(filter_bboxes) == 0:
                             cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
-                            print("1detect_post ignore face")
+                            main_logger.debug("1 detect_post ignore face")
                         else:
+                            #Start check straight face again
+                            filter_bbox = filter_bboxes[0]
+                            filter_landmark = filter_landmarks[0]
+                            if filter_bbox[0]<0 or filter_bbox[1]<0 or filter_bbox[2] > faceCropExpand.shape[1] or filter_bbox[3] > faceCropExpand.shape[0]:
+                                main_logger.debug("1 box out of area")
+                                continue
+                            filter_isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(faceCropExpand, filter_landmark)
+                            if not filter_isStraightFace:
+                                main_logger.debug("1 not straight face")
+                                continue
+                            #End check straight face again
+
                             share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, trackidtoname[(deviceId,trackid)])
                             if threshnotblur > user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1]:
-                                if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
-                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
-                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand                                
-                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
-                                    user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
-                                    main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
+                                # if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][0] = faceSize
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][1] = threshnotblur
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][4] = faceCropExpand                                
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][5] = False
+                                user_qualityscore_face_firsttime[trackidtoname[(deviceId,trackid)]][3] = time.time()
+                                main_logger.info(f"Found a better face of {trackidtoname[(deviceId,trackid)]}")
 
                 
                 elif score > share_param.dev_config["DEV"]["face_reg_score"]:
@@ -376,20 +388,32 @@ def recogn_thread_fun():
 
                     if isStraightFace and isillumination and not overlap:
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
-                        print(2, filter_bboxes)
+                        # print(2, filter_bboxes)
                         if len(filter_bboxes) == 0:
                             cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
-                            print("2detect_post ignore face")
+                            main_logger.debug("2 detect_post ignore face")
                         else:
+                            #Start check straight face again
+                            filter_bbox = filter_bboxes[0]
+                            filter_landmark = filter_landmarks[0]
+                            if filter_bbox[0]<0 or filter_bbox[1]<0 or filter_bbox[2] > faceCropExpand.shape[1] or filter_bbox[3] > faceCropExpand.shape[0]:
+                                main_logger.debug("2 box out of area")
+                                continue
+                            filter_isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(faceCropExpand, filter_landmark)
+                            if not filter_isStraightFace:
+                                main_logger.debug("2 not straight face")
+                                continue
+                            #End check straight face again
+
                             share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, user_name)
                             if threshnotblur > user_qualityscore_face_firsttime[user_name][1]:
-                                if score < share_param.dev_config["DEV"]["face_reg_score"]:
-                                    user_qualityscore_face_firsttime[user_name][0] = faceSize
-                                    user_qualityscore_face_firsttime[user_name][1] = threshnotblur
-                                    user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
-                                    user_qualityscore_face_firsttime[user_name][5] = False
-                                    user_qualityscore_face_firsttime[user_name][3] = time.time()
-                                    main_logger.info(f"Found a better face of {user_name}")
+                                # if score < share_param.dev_config["DEV"]["face_reg_score"]:
+                                user_qualityscore_face_firsttime[user_name][0] = faceSize
+                                user_qualityscore_face_firsttime[user_name][1] = threshnotblur
+                                user_qualityscore_face_firsttime[user_name][4] = faceCropExpand
+                                user_qualityscore_face_firsttime[user_name][5] = False
+                                user_qualityscore_face_firsttime[user_name][3] = time.time()
+                                main_logger.info(f"Found a better face of {user_name}")
 
                 else:
                     new_user_name = datetime.now().strftime("%H%M%S%f")
@@ -399,11 +423,24 @@ def recogn_thread_fun():
 
                     if isNotBlur and isStraightFace and isillumination and not overlap:
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
-                        print(3, filter_bboxes)
+                        # print(3, filter_bboxes)
+
                         if len(filter_bboxes) == 0:
                             cv2.imwrite(f"dataset/detect_post_ignore/{time.time()}.jpg", faceCropExpand)
-                            print("3detect_post ignore face")
+                            main_logger.debug("3 detect_post ignore face")
                         else:
+                            #Start check straight face again
+                            filter_bbox = filter_bboxes[0]
+                            filter_landmark = filter_landmarks[0]
+                            if filter_bbox[0]<0 or filter_bbox[1]<0 or filter_bbox[2] > faceCropExpand.shape[1] or filter_bbox[3] > faceCropExpand.shape[0]:
+                                main_logger.debug("3 box out of area")
+                                continue
+                            filter_isStraightFace = share_param.evaluter_cams[deviceID].check_straight_face(faceCropExpand, filter_landmark)
+                            if not filter_isStraightFace:
+                                main_logger.debug("3 not straight face")
+                                continue
+                            #End check straight face again
+                            
                             trackidtoname[(deviceId,trackid)] = new_user_name
                             share_param.facerec_system.add_photo_descriptor_by_user_name(faceCropExpand, descriptor, new_user_name)
                             user_qualityscore_face_firsttime[new_user_name] = [faceSize, threshnotblur, isStraightFace, time.time(), faceCropExpand, False, time.time(), "", 0]
@@ -412,14 +449,14 @@ def recogn_thread_fun():
 
                             first_face_bgr = cv2.cvtColor(faceCropExpand, cv2.COLOR_RGB2BGR)
                             cv2.imwrite(photo_path, first_face_bgr)
-                            support.add_redis_queue(new_user_name, first_face_bgr)
+                            # support.add_redis_queue(new_user_name, first_face_bgr)
 
                             full_bgr =  cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
                             cv2.imwrite(os.path.join("dataset/firstphotos", new_user_name + "U.jpg"), full_bgr)
                             
-                            user_qualityscore_face_firsttime[new_user_name][4] = None
-                            user_qualityscore_face_firsttime[new_user_name][5] = True
-                            user_qualityscore_face_firsttime[new_user_name][8] += 1
+                            # user_qualityscore_face_firsttime[new_user_name][4] = None
+                            # user_qualityscore_face_firsttime[new_user_name][5] = True
+                            # user_qualityscore_face_firsttime[new_user_name][8] += 1
                             main_logger.info(f"Add new face {new_user_name}")
             
             support.add_imshow_queue(deviceId, rgbDraw)
@@ -427,7 +464,7 @@ def recogn_thread_fun():
         # for deviceId in FPS:
         #     print(f"FPS {deviceId} {FPS[deviceId]}")
         
-        main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
+        # main_logger.debug(f"Recogn Time: {time.time() - totalTime}")
     # csvfile.close()
 
 

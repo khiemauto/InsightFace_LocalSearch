@@ -2,23 +2,12 @@ import cv2
 import numpy as np
 from typing import List, Dict, Tuple
 from core import share_param, support
-import torch
 
-# from . import _init_paths
-
-from .lib.opts import opts
-from .lib.tracker.multitracker import JDETracker
 
 TRACKER_INDEX     = 0
 DESCRIPTOR_INDEX  = 1
 UPDATED_INDEX     = 2
 
-opt = opts().init(['mot', '--load_model', 'fairmot_lite.pth', '--conf_thres', '0.4', '--arch', 'yolo', '--reid_dim', '64'])
-# print(opt)
-# opt.load_model = "../models/fairmot_lite.pth"
-# opt.conf_thres = 0.4
-# opt.arch = "yolo"
-# opt.reid_dim = 64
 class Tracking():
     def __init__(self, config: Dict) -> None:
         super().__init__()
@@ -26,23 +15,7 @@ class Tracking():
         self.threshsimilarityinstant = config["threshsimilarityinstant"]
         self.threshiou = config["threshiou"]
         self.threshsimilarityiou = config["threshsimilarityiou"]
-        self.device = config["device"]
         self.maxid = 1  #Auto increament when creat new track
-        self.tracker = JDETracker(opt, frame_rate=15)
-        
-
-    def _preprocess(self, img0: np.ndarray) -> np.ndarray:
-        # face_tensor = self.preprocess(face)
-        # self.model_config["img_size"]
-        # stride = int(self.model.stride.max())
-        # resize = (self.model_config["img_size"] // stride) * stride
-        img0 = img0.copy()
-        img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (608, 608))
-        img = img.transpose((2, 0, 1))
-        img = np.ascontiguousarray(img, dtype=np.float32)
-        img /= 255.0
-        return img, img0
     
     def newsession(self, frame, detectboxs: List[int]):
         """
@@ -107,62 +80,10 @@ class Tracking():
         # print(len(trackid_bboxes))
         return trackid_bboxes
 
-
-    def bb_intersection_per_first(self, boxA, boxB):
-        # determine the (x, y)-coordinates of the intersection rectangle
-        xA = max(boxA[0], boxB[0])
-        yA = max(boxA[1], boxB[1])
-        xB = min(boxA[2], boxB[2])
-        yB = min(boxA[3], boxB[3])
-
-        # compute the area of intersection rectangle
-        interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
-        if interArea == 0:
-            return 0
-        # compute the area of both the prediction and ground-truth
-        # rectangles
-        boxAArea = abs((boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
-        boxBArea = abs((boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
-
-        # compute the intersection over union by taking the intersection
-        # area and dividing it by the sum of prediction + ground-truth
-        # areas - the interesection area
-        iou = interArea / float(boxAArea)
-
-        # return the intersection over union value
-        return iou
-
     def update_with_descriptor(self, frame, detectbox_descriptors):
         """
         detectbox_descriptors : [(boxx, boxy, boxw, boxh), descriptor), ...]
         """
-
-        img, img0 = self._preprocess(frame)
-        # cv2.imshow("img0",img0)
-        # cv2.waitKey(0)
-        blob = torch.from_numpy(img).to(self.device).unsqueeze(0)
-        online_targets = self.tracker.update(blob, img0)
-        online_tlwhs = []
-        online_ids = []
-        for t in online_targets:
-            tlwh = t.tlwh
-            tid = t.track_id
-            online_tlwhs.append(tlwh)
-            online_ids.append(tid)
-        # print(online_tlwhs)
-        # print(online_ids)
-
-        for i, tlwh in enumerate(online_tlwhs):
-            x1, y1, w, h = tlwh
-            intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
-            obj_id = int(online_ids[i])
-            id_text = '{}'.format(int(obj_id))
-            cv2.rectangle(img0, intbox[0:2], intbox[2:4], color=(0,255,0), thickness=1)
-            cv2.putText(img0, id_text, (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255),
-                        thickness=1)
-        # cv2.imshow("img0", img0)
-        # support.add_imshow_queue(12, img0)
-
 
         #Create  track id return
         trackid_bboxes = [None]*len(detectbox_descriptors)
@@ -259,21 +180,7 @@ class Tracking():
                 trackid_bboxes[track_detect_iou[trackid][0]] = (trackid, track_detect_iou[trackid][1])
                 detectbox_descriptor_processed.add(track_detect_iou[trackid][0])
             else:
-                opencv_bbox = opencv_predict_trackboxs[trackid]
-                xyxyopencv_bbox = (opencv_bbox[0], opencv_bbox[1], opencv_bbox[0]+opencv_bbox[2], opencv_bbox[1]+ opencv_bbox[3])
-                for tlwh, id in zip(online_tlwhs, online_ids):
-                    xyxyMOT = (tlwh[0], tlwh[1], tlwh[0]+tlwh[2], tlwh[1]+ tlwh[3])
-                    iou = self.bb_intersection_per_first(xyxyopencv_bbox, xyxyMOT)
-                    # print(self.tracker[trackid][3])
-                    if iou > 0.9 and id in self.trackers[trackid][3]:
-                        print("opencv_bbox maching MOT", id)
-                        self.trackers[trackid][TRACKER_INDEX] = cv2.legacy.TrackerKCF_create()
-                        self.trackers[trackid][TRACKER_INDEX].init(frame, opencv_bbox)
-                        # self.trackers[trackid][DESCRIPTOR_INDEX] = track_detect_iou[trackid][3]
-                        self.trackers[trackid][UPDATED_INDEX] = True
-                        # self.tracker[self.maxid][3].append(id)
-                if self.trackers[trackid][UPDATED_INDEX] != True:
-                    del self.trackers[trackid]
+                del self.trackers[trackid]
             
         #Create track with new detect
 
@@ -298,16 +205,8 @@ class Tracking():
                 continue
             # if detectboxid not in detect_track_iou:
             self.maxid += 1
-            self.trackers[self.maxid] = [cv2.legacy.TrackerKCF_create(), descriptor, True, []]
+            self.trackers[self.maxid] = [cv2.legacy.TrackerKCF_create(), descriptor, True]
             self.trackers[self.maxid][0].init(frame, detectbox)
-            for tlwh, id in zip(online_tlwhs, online_ids):
-                xyxyMOT = (tlwh[0], tlwh[1], tlwh[0]+tlwh[2], tlwh[1]+ tlwh[3])
-                print(xyxydetectbox, xyxyMOT)
-                iou = self.bb_intersection_per_first(xyxydetectbox, xyxyMOT)
-                if iou > 0.9:
-                    print("MOT maching detect", id)
-                    self.trackers[self.maxid][3].append(id)
-
             trackid_bboxes[detectboxid] = (self.maxid, detectbox)
             detectbox_descriptor_processed.add(detectboxid)
 

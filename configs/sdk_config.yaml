@@ -26,6 +26,12 @@ attributes:                         # face attributes detection
   decision_threshold: 0.5
 database:                         # faiss database
   descriptor_size: *descriptor_size # database descriptor size
+
+database_notface:                   # wheel,.. database
+  descriptor_size: *descriptor_size # database descriptor size
+  similar_threshold: 0.65           #
+  photo_path: dataset/notface       # folder contain not face photo
+
 tracking:                         # Join Detection and OpenCV and Embedding tracking
   threshsimilarityinstant: 0.6      # Feature similarity matching between previous frame with current frame
   threshiou: 0.2                    # IOU between opencv tracking with detection

@@ -26,18 +26,20 @@ logger = logging.getLogger(__name__)
 
 class FaceRecognitionSDK:
     def __init__(self, config: dict = None):
+        self.config = config
 
-        if config is None:
-            path_to_default_config = Path(Path(__file__).parent, "config/config.yaml").as_posix()
-            config = read_yaml(path_to_default_config)
+        # if self.config is None:
+        #     path_to_default_config = Path(Path(__file__).parent, "config/config.yaml").as_posix()
+        #     self.config = read_yaml(path_to_default_config)
 
         logger.info("Start SDK initialization.")
-        self.detector = RetinaFace(config["detector"])
-        self.detector_post = RetinaFace(config["detector_post"])
-        self.embedder = InsightFaceEmbedder(config["embedder"])
-        self.attributes = FaceAttributes(config["attributes"])
-        self.database = FaissFaceStorage(config["database"])
+        self.detector = RetinaFace(self.config["detector"])
+        self.detector_post = RetinaFace(self.config["detector_post"])
+        self.embedder = InsightFaceEmbedder(self.config["embedder"])
+        self.attributes = FaceAttributes(self.config["attributes"])
+        self.database = FaissFaceStorage(self.config["database"])
         # self.evaluter = CustomEvaluter(config["evaluter"])
+        self.database_notface = FaissFaceStorage(self.config["database_notface"])
         logger.info("Finish SDK initialization")
 
     def load_database(self, path: str) -> None:
@@ -322,3 +324,39 @@ class FaceRecognitionSDK:
     def set_configuration(self, config: dict):
         """Configure face recognition sdk."""
         raise NotImplementedError()
+
+    def create_database_notface_from_folders(self, root_path: str) -> None:
+        """Create face database not face from hierarchy of folders.
+        Each folder named as an individual and contains his/her photos.
+        """
+        import os
+        from .utils.io_utils import read_image
+        try:
+            print("start create_database_notface_from_folders")
+            photo_id = 0
+            for username in os.listdir(root_path):
+                user_images_path = os.path.join(root_path, username)
+                if not os.path.isdir(user_images_path):
+                    continue
+                # iterating over user photos
+                for filename in os.listdir(user_images_path):
+                    print(f"Adding {filename} from {user_images_path}")
+                    photo_path = os.path.join(root_path, username, filename)
+                    photo = read_image(photo_path)
+                    photo = photo[photo.shape[0]//5: photo.shape[0]*4//5, photo.shape[1]//5: photo.shape[1]*4//5]
+                    # cv2.imwrite(f"crop_not_face_{filename}.jpg", photo)
+                    photo = cv2.resize(photo, (112,112))
+                    descriptor = self.get_descriptor(photo)
+                    self.database_notface.add_descriptor(descriptor, photo_id)
+                    photo_id += 1
+            print("end create_database_notface_from_folders")
+
+        except Exception:
+            self.database_notface.reset()
+            raise
+    def check_not_in_database_notface(self, descriptor):
+        indicies, distances = self.database_notface.find(descriptor, 1)
+        if distances[0]> self.config["database_notface"]["similar_threshold"]:
+            return False
+        else:
+            return True

@@ -349,6 +349,11 @@ def recogn_thread_fun():
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute, trackid, trackidtoname[(deviceId,trackid)], score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
                     if isStraightFace and isillumination and not overlap:
+                        bNotIn = share_param.facerec_system.sdk.check_not_in_database_notface(descriptor)
+                        if not bNotIn:
+                            print("1In database_notface")
+                            continue
+
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
                         # print(1, filter_bboxes)
                         if len(filter_bboxes) == 0:
@@ -388,6 +393,11 @@ def recogn_thread_fun():
                     user_qualityscore_face_firsttime[user_name][6] = time.time()    #Update lastSeeTime
 
                     if isStraightFace and isillumination and not overlap:
+                        bNotIn = share_param.facerec_system.sdk.check_not_in_database_notface(descriptor)
+                        if not bNotIn:
+                            print("2In database_notface")
+                            continue
+
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
                         # print(2, filter_bboxes)
                         if len(filter_bboxes) == 0:
@@ -423,6 +433,10 @@ def recogn_thread_fun():
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
                     if isNotBlur and isStraightFace and isillumination and not overlap:
+                        bNotIn = share_param.facerec_system.sdk.check_not_in_database_notface(descriptor)
+                        if not bNotIn:
+                            print("3In database_notface")
+                            continue
                         filter_bboxes, filter_landmarks = share_param.facerec_system.sdk.detect_post_faces(faceCropExpand)
                         # print(3, filter_bboxes)
 
@@ -600,6 +614,8 @@ if __name__ == '__main__':
         share_param.facerec_system.create_database_from_folders(share_param.dev_config["DATA"]["photo_path"])
         share_param.facerec_system.save_database(share_param.dev_config["DATA"]["database_path"])
     share_param.facerec_system.load_database(share_param.dev_config["DATA"]["database_path"])
+
+    share_param.facerec_system.sdk.create_database_notface_from_folders(share_param.sdk_config["database_notface"]["photo_path"])
 
     share_param.cam_queue = queue.Queue(maxsize=share_param.CAM_QUEUE_SIZE*share_param.batch_size+1)
     share_param.detect_queue = queue.Queue(maxsize=share_param.DETECT_QUEUE_SIZE*share_param.batch_size+1)

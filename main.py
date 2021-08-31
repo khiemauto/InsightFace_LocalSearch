@@ -427,7 +427,7 @@ def recogn_thread_fun():
                                 main_logger.info(f"Found a better face of {user_name}")
 
                 else:
-                    new_user_name = datetime.now().strftime("%H%M%S%f")
+                    new_user_name = datetime.now().strftime("%y%m%d%H%M%S%f")
                     cv2.rectangle(rgbDraw, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 0, 255), 2)
                     y = bbox[1] - 15 if bbox[1] - 15 > 15 else bbox[1] + 15
                     cv2.putText(rgbDraw, "{} {} {} {:03.3f} {:03.3f} {:03.3f} {}".format(attribute,trackid, new_user_name, score, threshillumination, threshnotblur, overlap), (int(bbox[0]), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)

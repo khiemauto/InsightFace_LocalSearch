@@ -48,7 +48,7 @@ soap_format = '''<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
             <!--Optional:-->
             <xsd:header>
                <!--Optional:-->
-               <xsd1:channelCode>M</xsd1:channelCode>
+               <xsd1:channelCode>C</xsd1:channelCode>
                <!--Optional:-->
                <xsd1:deviceId>hungdv</xsd1:deviceId>
                <!--Optional:-->

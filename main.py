@@ -268,7 +268,7 @@ def recogn_thread_fun():
                     FPS[deviceId][0] = 0.9*FPS[deviceId][0] + 0.1*FPS[deviceId][2]
                     FPS[deviceId][2] = 0
                     FPS[deviceId][1] = time.time()
-                    main_logger.info(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")
+                    # main_logger.info(f"Pipleline FPS {deviceId}: {FPS[deviceId][0]}")
 
             faceFrameInfos[(iBuffer, deviceId)] = ([], rgb)     #Init faceFrameInfos
             
@@ -515,7 +515,7 @@ def redis_thread_fun():
     namespaces = {
         'ax233': 'http://entity.showroom.ewallet.lpb.com/xsd',
         'ax214': 'http://entity.ewallet.lpb.com/xsd',
-        'ax216': "http://entity.showroom.ewallet.lpb.com/xsd"
+        'ax245': "http://entity.showroom.ewallet.lpb.com/xsd"
     }
     namesays = {}
 
@@ -538,16 +538,16 @@ def redis_thread_fun():
 
             dom = ET.fromstring(response.content)
             customerNames = dom.findall(
-                './/ax216:fullName',
+                './/ax245:fullName',
                 namespaces
             )
 
             scores = dom.findall(
-                './/ax216:score',
+                './/ax245:score',
                 namespaces
             )
             vips = dom.findall(
-                './/ax216:vip',
+                './/ax245:vip',
                 namespaces
             )
 
@@ -555,23 +555,29 @@ def redis_thread_fun():
             max_name = ""
             max_score = 0.0
             max_vip = "0"
+            thresh_score = 0.8
             for name, score, vip in zip(customerNames, scores, vips):
+                print(name.text, score.text, vip.text)
                 if name.text is None or score.text is None or vip.text is None:
                     continue
                 try:
-                    name_scores.append((name.text,float(score.text)))
+                    fscore, fthresh = score.text.strip().split("|")
+                    fscore = float(fscore)
+                    fthresh = float(fthresh)
+                    name_scores.append((name.text,fscore))
                 except:
                     print("Can't convert score string to number")
                     continue
-
-                if float(score.text)>max_score:
-                    max_score = float(score.text)
+                
+                thresh_score = fthresh
+                if fscore>max_score:
+                    max_score = fscore
                     max_name = name.text
                     max_vip = vip.text
 
-            print("max_name", max_name, "max_score", max_score, "max_vip", max_vip)
+            print("max_name", max_name, "max_score", max_score, "max_vip", max_vip, "thresh", thresh_score)
 
-            if max_name is None or max_name == "" or max_score<0.85:
+            if max_name is None or max_name == "" or max_score<thresh_score:
                 continue
             
             if user_name in user_qualityscore_face_firsttime:
